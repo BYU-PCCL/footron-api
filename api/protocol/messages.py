@@ -74,7 +74,7 @@ class ConnectMessage(BaseMessage):
 @dataclasses.dataclass
 class AccessMessage(BaseMessage, ClientBoundMixin):
     accepted: bool
-    reason: Optional[str]
+    reason: Optional[str] = None
     type = MessageType.ACCESS
 
 
