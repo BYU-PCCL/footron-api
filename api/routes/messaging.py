@@ -43,10 +43,10 @@ class _AppConnection:
     async def send_message_from_client(
         self, client_id: str, message: protocol.BaseMessage
     ):
-        return self.queue.put(_AppBoundMessageInfo(client_id, message))
+        return await self.queue.put(_AppBoundMessageInfo(client_id, message))
 
     async def send_heartbeat(self, client_id: str, up: bool):
-        return self.socket.send_json(
+        return await self.socket.send_json(
             protocol.ClientHeartbeatMessage.create(up=up, client=client_id)
         )
 
@@ -78,10 +78,10 @@ class _AppConnection:
                 await self.send_heartbeat(message.client, False)
                 return
 
-            return self._send_to_client(message)
+            return await self._send_to_client(message)
 
         if isinstance(message, protocol.DisplaySettingsMessage):
-            return controller_api.update_display_settings(message.settings)
+            return await controller_api.update_display_settings(message.settings)
 
         raise protocol.UnhandledMessageType(
             f"Unhandled message type '{message.type}' from app '{self.id}'"
@@ -97,7 +97,7 @@ class _AppConnection:
                 f"App {self.id} attempted to send message to client without specifying client ID"
             )
 
-        return self.manager.clients[self.id][message.client].send_message(message)
+        return await self.manager.clients[self.id][message.client].send_message(message)
 
 
 @dataclasses.dataclass
@@ -115,22 +115,21 @@ class _ClientConnection:
         return self.queue.put(message)
 
     async def send_heartbeat(self, up: bool):
-        return self.socket.send_json(protocol.HeartbeatMessage.create(up=up))
+        return await self.socket.send_json(protocol.HeartbeatMessage.create(up=up))
 
     async def receive_handler(self):
         """Handle messages from socket: client -> app"""
         async for message in self.socket.iter_json():
-            self._handle_receive_message(message)
+            await self._handle_receive_message(message)
 
     async def send_handler(self):
         """Handle messages in queue: app -> client"""
         while True:
-            self._handle_send_message(await self.queue.get())
+            await self._handle_send_message(await self.queue.get())
 
-    def _handle_receive_message(self, data: JsonDict):
+    async def _handle_receive_message(self, data: JsonDict):
         if not self.manager.app_connected(self.app_id):
-            await self.send_heartbeat(False)
-            return
+            return await self.send_heartbeat(False)
 
         message = protocol.deserialize(data)
 
@@ -140,9 +139,11 @@ class _ClientConnection:
             logging.error(error)
             return
 
-        await self.manager.apps[self.app_id].send_message_from_client(self.id, message)
+        return await self.manager.apps[self.app_id].send_message_from_client(
+            self.id, message
+        )
 
-    def _handle_send_message(self, message: protocol.BaseMessage):
+    async def _handle_send_message(self, message: protocol.BaseMessage):
         self._pre_send(message)
         serialized_message = protocol.serialize(message)
         # Client doesn't need to know its ID because it doesn't have to self-identify
