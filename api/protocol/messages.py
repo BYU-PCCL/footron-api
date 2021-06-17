@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import dataclasses
+import enum
 from enum import Enum
 from typing import Type, Optional, Any, Dict, TypedDict, Union
 
@@ -8,21 +11,25 @@ from .errors import *
 PROTOCOL_VERSION = 1
 
 
+# TODO: Should we consider splitting up messages (and their types) by direction?
+@enum.unique
 class MessageType(Enum):
     #: Client connection status update
-    APP_HEARTBEAT = 0
+    HEARTBEAT_APP = "ahb"
     #: App connection status update
-    CLIENT_HEARTBEAT = 1
+    HEARTBEAT_CLIENT = "chb"
     #: Client connection request
-    CONNECT = 2
+    CONNECT = "con"
     #: App response to client connection request
-    ACCESS = 3
-    #: All application-defined messages in either direction, including requests
-    APPLICATION = 4
+    ACCESS = "acc"
+    #: Application-defined messages, including requests, to the app
+    APPLICATION_APP = "app"
+    #: Application-defined messages, including requests, to the client
+    APPLICATION_CLIENT = "cap"
     #: Request to change app runtime settings, handled by router
-    DISPLAY_SETTINGS = 5
+    DISPLAY_SETTINGS = "dse"
     #: Lifecycle updates (pause, resume)
-    LIFECYCLE = 6
+    LIFECYCLE = "lcy"
 
 
 FIELD_MSG_TYPE = "type"
@@ -30,12 +37,16 @@ FIELD_MSG_TYPE = "type"
 
 @dataclasses.dataclass
 class BaseMessage:
-    type: str
     version: int
+    type: MessageType
 
     @classmethod
-    def create(cls, **kwargs):
-        return cls(**kwargs, version=PROTOCOL_VERSION)
+    def create(cls, **kwargs) -> BaseMessage:
+        # Force using class defined type
+        if "type" in kwargs:
+            del kwargs["type"]
+        # noinspection PyArgumentList
+        return cls(type=cls.type, version=PROTOCOL_VERSION, **kwargs)
 
 
 @dataclasses.dataclass
@@ -46,12 +57,12 @@ class ClientBoundMixin:
 @dataclasses.dataclass
 class HeartbeatMessage(BaseMessage):
     up: bool
-    type = MessageType.APP_HEARTBEAT
+    type = MessageType.HEARTBEAT_APP
 
 
 @dataclasses.dataclass
 class ClientHeartbeatMessage(HeartbeatMessage, ClientBoundMixin):
-    type = MessageType.CLIENT_HEARTBEAT
+    type = MessageType.HEARTBEAT_CLIENT
 
 
 @dataclasses.dataclass
@@ -69,14 +80,14 @@ class AccessMessage(BaseMessage, ClientBoundMixin):
 @dataclasses.dataclass
 class ApplicationMessage(BaseMessage):
     #: Request ID
-    req: Optional[str]
     body: Any
-    type = MessageType.APPLICATION
+    req: Optional[str] = None
+    type = MessageType.APPLICATION_APP
 
 
 @dataclasses.dataclass
 class ClientBoundApplicationMessage(ApplicationMessage, ClientBoundMixin):
-    type = MessageType.APPLICATION
+    type = MessageType.APPLICATION_CLIENT
 
 
 class DisplaySettings(TypedDict):
@@ -101,11 +112,12 @@ class LifecycleMessage(BaseMessage):
 
 
 message_type_map: Dict[MessageType, Type[BaseMessage]] = {
-    MessageType.APP_HEARTBEAT: HeartbeatMessage,
-    MessageType.CLIENT_HEARTBEAT: ClientHeartbeatMessage,
+    MessageType.HEARTBEAT_APP: HeartbeatMessage,
+    MessageType.HEARTBEAT_CLIENT: ClientHeartbeatMessage,
     MessageType.CONNECT: ConnectMessage,
     MessageType.ACCESS: AccessMessage,
-    MessageType.APPLICATION: ApplicationMessage,
+    MessageType.APPLICATION_APP: ApplicationMessage,
+    MessageType.APPLICATION_CLIENT: ClientBoundApplicationMessage,
     MessageType.DISPLAY_SETTINGS: DisplaySettingsMessage,
     MessageType.LIFECYCLE: LifecycleMessage,
 }
@@ -114,7 +126,9 @@ message_type_map: Dict[MessageType, Type[BaseMessage]] = {
 def serialize(data: BaseMessage) -> JsonDict:
     # TODO: If we end up needing to profile this code, we might want to use .__dict__() here instead:
     #  https://stackoverflow.com/questions/52229521/why-is-dataclasses-asdictobj-10x-slower-than-obj-dict
-    return dataclasses.asdict(data)
+
+    # This is a very hacky way (likely with better alternatives) to just get the 'type' field as its primitive type
+    return {**dataclasses.asdict(data), "type": data.type.value}
 
 
 def deserialize(data: JsonDict) -> BaseMessage:
@@ -123,8 +137,10 @@ def deserialize(data: JsonDict) -> BaseMessage:
             f"Message doesn't contain required field '{FIELD_MSG_TYPE}'"
         )
 
+    data[FIELD_MSG_TYPE] = MessageType(data[FIELD_MSG_TYPE])
+
     msg_type = data[FIELD_MSG_TYPE]
     if msg_type not in message_type_map:
         raise UnknownMessageType(f"Message specified unrecognized type '{msg_type}'")
 
-    return message_type_map[msg_type].__new__(**data)
+    return message_type_map[msg_type].create(**data)
