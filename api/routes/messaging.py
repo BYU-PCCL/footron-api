@@ -54,11 +54,22 @@ class _AppConnection:
     queue: asyncio.Queue[
         Union[protocol.BaseMessage, _AppBoundMessageInfo]
     ] = asyncio.Queue()
+    closed = False
 
     async def send_message_from_client(
         self, client_id: str, message: protocol.BaseMessage
     ):
         return await self.queue.put(_AppBoundMessageInfo(client_id, message))
+
+    async def connect(self):
+        return await self.socket.accept()
+
+    async def close(self) -> bool:
+        if self.closed:
+            return False
+        await self.socket.close()
+        self.closed = True
+        return True
 
     async def send_heartbeat(self, clients: Union[str, List[str]], up: bool):
         # Note that an "up" heartbeat containing a list of clients is expected to be comprehensive, and any clients
@@ -139,6 +150,7 @@ class _ClientConnection:
     # Until this is true, all messages other than connection requests will be blocked
     accepted: bool = False
     queue: asyncio.Queue[protocol.BaseMessage] = asyncio.Queue()
+    closed = False
 
     async def send_message(self, message: protocol.BaseMessage):
         return self.queue.put(message)
@@ -147,6 +159,16 @@ class _ClientConnection:
         await _checked_send(
             protocol.serialize(protocol.HeartbeatMessage.create(up=up)), self.socket
         )
+
+    async def connect(self):
+        return await self.socket.accept()
+
+    async def close(self) -> bool:
+        if self.closed:
+            return False
+        await self.socket.close()
+        self.closed = True
+        return True
 
     async def receive_handler(self):
         """Handle messages from socket: client -> app"""
@@ -212,15 +234,15 @@ class _ConnectionManager:
         self.clients: Dict[str, Dict[str, _ClientConnection]] = {}
 
     async def add_app(self, connection: _AppConnection):
-        await connection.socket.accept()
+        await connection.connect()
         self.apps[connection.id] = connection
 
     async def remove_app(self, connection: _AppConnection):
-        await connection.socket.close()
+        await connection.close()
         self.apps[connection.id] = connection
 
     async def add_client(self, connection: _ClientConnection):
-        await connection.socket.accept()
+        await connection.connect()
 
         if connection.app_id not in self.clients:
             self.clients[connection.app_id] = {}
@@ -228,7 +250,7 @@ class _ConnectionManager:
         self.clients[connection.app_id][connection.id] = connection
 
     async def remove_client(self, connection: _ClientConnection):
-        await connection.socket.close()
+        await connection.close()
         if (
             connection.app_id not in self.clients
             or connection.id not in self.clients[connection.app_id]
