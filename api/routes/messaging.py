@@ -23,7 +23,8 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
-class _AppBoundMessageInfo(TypedDict):
+@dataclasses.dataclass()
+class _AppBoundMessageInfo:
     client: str
     message: protocol.BaseMessage
 
@@ -35,7 +36,7 @@ class _AppConnection:
     id: str
     # TODO: I don't love how we're passing in an instance of the containing class here, is this clean?
     manager: _ConnectionManager
-    queue: asyncio.Queue[_AppBoundMessageInfo] = asyncio.Queue()
+    queue: asyncio.Queue[Union[protocol.BaseMessage, _AppBoundMessageInfo]] = asyncio.Queue()
 
     async def send_message(self, client_id: str, message: protocol.BaseMessage):
         return self.queue.put(_AppBoundMessageInfo(client=client_id, message=message))
@@ -48,6 +49,24 @@ class _AppConnection:
     async def receive_handler(self):
         async for message in self.socket.iter_json():
             await self._handle_receive_message(protocol.deserialize(message))
+
+    async def send_handler(self):
+        """Handle messages in queue: app -> client"""
+        while True:
+            item = await self.queue.get()
+
+            message = None
+            if isinstance(item, _AppBoundMessageInfo):
+                message = protocol.serialize(item.message)
+                # App needs to know source of client messages
+                message["client"] = item.client
+            if isinstance(item, protocol.BaseMessage):
+                message = protocol.serialize(item)
+
+            if message is None:
+                raise TypeError("Message wasn't _AppBoundMessageInfo or BaseMessage")
+
+            await self.socket.send_json(message)
 
     async def _handle_receive_message(self, message: protocol.BaseMessage):
         if hasattr(message, "client"):
@@ -205,3 +224,15 @@ async def messaging_in(websocket: WebSocket, app_id: str):
         (connection.send_handler, {}),
     )
     await _manager.remove_client(connection)
+
+
+@router.websocket("/out/<app_id>")
+async def messaging_in(websocket: WebSocket, app_id: str):
+    connection = _AppConnection(websocket, app_id, _manager)
+
+    await _manager.add_app(connection)
+    await run_until_first_complete(
+        (connection.receive_handler, {}),
+        (connection.send_handler, {}),
+    )
+    await _manager.remove_app(connection)
