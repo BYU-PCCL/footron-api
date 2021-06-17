@@ -47,7 +47,9 @@ class _AppConnection:
 
     async def send_heartbeat(self, client_id: str, up: bool):
         return await self.socket.send_json(
-            protocol.ClientHeartbeatMessage.create(up=up, client=client_id)
+            protocol.serialize(
+                protocol.ClientHeartbeatMessage.create(up=up, client=client_id)
+            )
         )
 
     async def receive_handler(self):
@@ -115,7 +117,9 @@ class _ClientConnection:
         return self.queue.put(message)
 
     async def send_heartbeat(self, up: bool):
-        return await self.socket.send_json(protocol.HeartbeatMessage.create(up=up))
+        return await self.socket.send_json(
+            protocol.serialize(protocol.HeartbeatMessage.create(up=up))
+        )
 
     async def receive_handler(self):
         """Handle messages from socket: client -> app"""
