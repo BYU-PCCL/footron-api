@@ -213,9 +213,17 @@ class _ClientConnection:
                 f"Unauthorized client {self.id} attempted to send an authenticated message"
             )
 
-    def _pre_send(self, message: protocol.BaseMessage):
+    def _pre_send(self, message: protocol.BaseMessage) -> bool:
         if isinstance(message, protocol.AccessMessage):
             self.accepted = message.accepted
+            return True
+
+        if self.accepted:
+            return True
+
+        # Defensively prevent apps from sending messages to clients they haven't accepted--this should be handled in app
+        # messaging libraries, but this helps us cover our bases
+        return False
 
     @staticmethod
     def _post_send(message: protocol.BaseMessage):
