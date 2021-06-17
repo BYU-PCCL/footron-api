@@ -46,4 +46,3 @@ class ControllerApi:
             self._url_with_endpoint("/current"), json=settings
         ) as response:
             return response.ok
-

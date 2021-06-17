@@ -36,9 +36,13 @@ class _AppConnection:
     id: str
     # TODO: I don't love how we're passing in an instance of the containing class here, is this clean?
     manager: _ConnectionManager
-    queue: asyncio.Queue[Union[protocol.BaseMessage, _AppBoundMessageInfo]] = asyncio.Queue()
+    queue: asyncio.Queue[
+        Union[protocol.BaseMessage, _AppBoundMessageInfo]
+    ] = asyncio.Queue()
 
-    async def send_message_from_client(self, client_id: str, message: protocol.BaseMessage):
+    async def send_message_from_client(
+        self, client_id: str, message: protocol.BaseMessage
+    ):
         return self.queue.put(_AppBoundMessageInfo(client_id, message))
 
     async def send_heartbeat(self, client_id: str, up: bool):
@@ -79,7 +83,9 @@ class _AppConnection:
         if isinstance(message, protocol.DisplaySettingsMessage):
             return controller_api.update_display_settings(message.settings)
 
-        raise protocol.UnhandledMessageType(f"Unhandled message type '{message.type}' from app '{self.id}'")
+        raise protocol.UnhandledMessageType(
+            f"Unhandled message type '{message.type}' from app '{self.id}'"
+        )
 
     async def _send_to_client(
         self, message: Union[protocol.BaseMessage, protocol.ClientBoundMixin]
