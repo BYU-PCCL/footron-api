@@ -247,7 +247,7 @@ class _ConnectionManager:
 
     async def remove_app(self, connection: _AppConnection):
         await connection.close()
-        self.apps[connection.id] = connection
+        del self.apps[connection.id]
 
     async def add_client(self, connection: _ClientConnection):
         await connection.connect()
