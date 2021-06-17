@@ -59,20 +59,7 @@ class _AppConnection:
     async def send_handler(self):
         """Handle messages in queue: app -> client"""
         while True:
-            item = await self.queue.get()
-
-            message = None
-            if isinstance(item, _AppBoundMessageInfo):
-                message = protocol.serialize(item.message)
-                # App needs to know source of client messages
-                message["client"] = item.client
-            if isinstance(item, protocol.BaseMessage):
-                message = protocol.serialize(item)
-
-            if message is None:
-                raise TypeError("Message wasn't _AppBoundMessageInfo or BaseMessage")
-
-            await self.socket.send_json(message)
+            await self._handle_send_message(await self.queue.get())
 
     async def _handle_receive_message(self, message: protocol.BaseMessage):
         if hasattr(message, "client"):
@@ -88,6 +75,22 @@ class _AppConnection:
         raise protocol.UnhandledMessageType(
             f"Unhandled message type '{message.type}' from app '{self.id}'"
         )
+
+    async def _handle_send_message(
+        self, item: Union[protocol.BaseMessage, _AppBoundMessageInfo]
+    ):
+        message = None
+        if isinstance(item, _AppBoundMessageInfo):
+            message = protocol.serialize(item.message)
+            # App needs to know source of client messages
+            message["client"] = item.client
+        if isinstance(item, protocol.BaseMessage):
+            message = protocol.serialize(item)
+
+        if message is None:
+            raise TypeError("Message wasn't _AppBoundMessageInfo or BaseMessage")
+
+        return await self.socket.send_json(message)
 
     async def _send_to_client(
         self, message: Union[protocol.BaseMessage, protocol.ClientBoundMixin]
