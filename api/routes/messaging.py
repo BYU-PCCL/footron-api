@@ -45,11 +45,19 @@ class _AppConnection:
     ):
         return await self.queue.put(_AppBoundMessageInfo(client_id, message))
 
-    async def send_heartbeat(self, client_id: str, up: bool):
+    async def send_heartbeat(self, clients: Union[str, List[str]], up: bool):
+        # Note that an "up" heartbeat containing a list of clients is expected to be comprehensive, and any clients
+        # not listed should be removed. Likewise, a "down" heartbeat containing a list of clients should be interpreted
+        # as a list of clients to remove.
+
+        if isinstance(clients, str):
+            clients = [clients]
+
+        logger.info(f"Sending heartbeat to app: {self.id}")
         return await self.socket.send_json(
             protocol.serialize(
-                protocol.ClientHeartbeatMessage.create(up=up, client=client_id)
-            )
+                protocol.ClientHeartbeatMessage.create(up=up, clients=clients)
+            ),
         )
 
     async def receive_handler(self):

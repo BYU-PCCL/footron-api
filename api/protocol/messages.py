@@ -3,7 +3,7 @@ from __future__ import annotations
 import dataclasses
 import enum
 from enum import Enum
-from typing import Type, Optional, Any, Dict, TypedDict, Union
+from typing import Type, Optional, Any, Dict, TypedDict, Union, List
 
 from ..constants import JsonDict
 from .errors import *
@@ -61,7 +61,8 @@ class HeartbeatMessage(BaseMessage):
 
 
 @dataclasses.dataclass
-class ClientHeartbeatMessage(HeartbeatMessage, ClientBoundMixin):
+class ClientHeartbeatMessage(HeartbeatMessage):
+    clients: List[str]
     type = MessageType.HEARTBEAT_CLIENT
 
 
