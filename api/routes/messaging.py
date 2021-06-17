@@ -247,6 +247,10 @@ class _ConnectionManager:
 
     async def remove_app(self, connection: _AppConnection):
         await connection.close()
+
+        if connection.id not in self.apps:
+            return
+
         del self.apps[connection.id]
 
     async def add_client(self, connection: _ClientConnection):
@@ -263,7 +267,6 @@ class _ConnectionManager:
             connection.app_id not in self.clients
             or connection.id not in self.clients[connection.app_id]
         ):
-            # TODO: Do we want to throw an error here instead?
             return
 
         del self.clients[connection.app_id][connection.id]
