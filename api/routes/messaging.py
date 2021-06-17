@@ -134,7 +134,7 @@ class _AppConnection:
         #  BaseMessage or a ClientBoundMixin, but not a combination of both
         if not hasattr(message, "client"):
             raise ValueError(
-                f"App {self.id} attempted to send message to client without specifying client ID"
+                f"App '{self.id}' attempted to send message to client without specifying client ID"
             )
 
         return await self.manager.clients[self.id][message.client].send_message(message)
