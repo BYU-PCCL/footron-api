@@ -14,6 +14,7 @@ from starlette.websockets import WebSocketState
 from .. import protocol
 from ..constants import JsonDict
 from ..data import controller_api
+from ..util import asyncio_interval
 
 router = APIRouter(
     prefix="/messaging",
@@ -247,8 +248,32 @@ class _ConnectionManager:
         # See note on self.clients in __init__
         return app_id in self.clients and client_id in self.clients[app_id]
 
+    async def send_heartbeats(self):
+        """Send heartbeats to all connected clients and apps"""
+        tasks = []
+        for app in self.apps.values():
+            client_ids = []
+            if app.id in self.clients:
+                client_ids = [c.id for c in self.clients[app.id].values()]
+
+            tasks.append(app.send_heartbeat(client_ids, True))
+
+        for app_id, clients in self.clients.items():
+            app_up = self.app_connected(app_id)
+            for client in clients.values():
+                tasks.append(client.send_heartbeat(app_up))
+
+        await asyncio.gather(*tasks)
+
 
 _manager = _ConnectionManager()
+
+
+@router.on_event("startup")
+async def on_startup():
+    asyncio.get_event_loop().create_task(
+        asyncio_interval(_manager.send_heartbeats, 0.5)
+    )
 
 
 # Until https://github.com/tiangolo/fastapi/pull/2640 is merged in, the prefix specified in our APIRouter won't apply to
