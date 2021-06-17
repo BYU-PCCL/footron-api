@@ -7,9 +7,9 @@ import websockets
 
 
 async def test():
-    uri = "ws://localhost:8000/messaging/in/test"
+    uri = "ws://localhost:8000/messaging/out/test"
     async with websockets.connect(uri) as websocket:
-        await websocket.send(json.dumps({"type": 0}))
+        await websocket.send(json.dumps({"type": "cap", "client": "abcdefg", "body": {"a": "b"}}))
         print(await websocket.recv())
 
 
