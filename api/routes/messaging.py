@@ -192,7 +192,7 @@ class _ConnectionManager:
         self.apps[connection.id] = connection
 
     async def remove_app(self, connection: _AppConnection):
-        await connection.socket.accept()
+        await connection.socket.close()
         self.apps[connection.id] = connection
 
     async def add_client(self, connection: _ClientConnection):
