@@ -14,9 +14,9 @@ PROTOCOL_VERSION = 1
 # TODO: Should we consider splitting up messages (and their types) by direction?
 @enum.unique
 class MessageType(Enum):
-    #: Client connection status update
-    HEARTBEAT_APP = "ahb"
     #: App connection status update
+    HEARTBEAT_APP = "ahb"
+    #: Client connection status update
     HEARTBEAT_CLIENT = "chb"
     #: Client connection request
     CONNECT = "con"
