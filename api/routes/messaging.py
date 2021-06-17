@@ -9,6 +9,7 @@ from typing import Dict, Union, List
 
 from fastapi import APIRouter, WebSocket
 from fastapi.concurrency import run_until_first_complete
+from starlette.websockets import WebSocketState
 
 from .. import protocol
 from ..constants import JsonDict
@@ -21,6 +22,19 @@ router = APIRouter(
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+
+
+# TODO: Move this somewhere
+async def _checked_send(message: JsonDict, socket: WebSocket) -> bool:
+    if socket.application_state == WebSocketState.DISCONNECTED:
+        return False
+
+    try:
+        await socket.send_json(message)
+    except RuntimeError as e:
+        logger.error(f"Error during socket send: {e}")
+        return False
+    return True
 
 
 @dataclasses.dataclass()
@@ -54,10 +68,11 @@ class _AppConnection:
             clients = [clients]
 
         logger.info(f"Sending heartbeat to app: {self.id}")
-        return await self.socket.send_json(
+        return await _checked_send(
             protocol.serialize(
                 protocol.ClientHeartbeatMessage.create(up=up, clients=clients)
             ),
+            self.socket,
         )
 
     async def receive_handler(self):
@@ -98,7 +113,7 @@ class _AppConnection:
         if message is None:
             raise TypeError("Message wasn't _AppBoundMessageInfo or BaseMessage")
 
-        return await self.socket.send_json(message)
+        return await _checked_send(message, self.socket)
 
     async def _send_to_client(
         self, message: Union[protocol.BaseMessage, protocol.ClientBoundMixin]
@@ -127,9 +142,9 @@ class _ClientConnection:
     async def send_message(self, message: protocol.BaseMessage):
         return self.queue.put(message)
 
-    async def send_heartbeat(self, up: bool):
-        return await self.socket.send_json(
-            protocol.serialize(protocol.HeartbeatMessage.create(up=up))
+    async def send_heartbeat(self, up: bool) -> bool:
+        await _checked_send(
+            protocol.serialize(protocol.HeartbeatMessage.create(up=up)), self.socket
         )
 
     async def receive_handler(self):
@@ -163,7 +178,7 @@ class _ClientConnection:
         serialized_message = protocol.serialize(message)
         # Client doesn't need to know its ID because it doesn't have to self-identify
         del serialized_message["client"]
-        await self.socket.send_json(serialized_message)
+        await _checked_send(serialized_message, self.socket)
         if not self._post_send(message):
             # Cancel connection
             return
