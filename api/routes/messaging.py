@@ -38,8 +38,8 @@ class _AppConnection:
     manager: _ConnectionManager
     queue: asyncio.Queue[Union[protocol.BaseMessage, _AppBoundMessageInfo]] = asyncio.Queue()
 
-    async def send_message(self, client_id: str, message: protocol.BaseMessage):
-        return self.queue.put(_AppBoundMessageInfo(client=client_id, message=message))
+    async def send_message_from_client(self, client_id: str, message: protocol.BaseMessage):
+        return self.queue.put(_AppBoundMessageInfo(client_id, message))
 
     async def send_heartbeat(self, client_id: str, up: bool):
         return self.socket.send_json(
@@ -134,7 +134,7 @@ class _ClientConnection:
             logging.error(error)
             return
 
-        await self.manager.apps[self.app_id].send_message(self.id, message)
+        await self.manager.apps[self.app_id].send_message_from_client(self.id, message)
 
     def _handle_send_message(self, message: protocol.BaseMessage):
         self._pre_send(message)
