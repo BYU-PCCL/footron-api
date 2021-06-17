@@ -253,6 +253,12 @@ class _ConnectionManager:
 
         del self.apps[connection.id]
 
+        # Disconnect clients
+        if connection.id in self.clients:
+            await asyncio.gather(
+                *[self.remove_client(c) for c in self.clients[connection.id].values()]
+            )
+
     async def add_client(self, connection: _ClientConnection):
         await connection.connect()
 
@@ -273,6 +279,10 @@ class _ConnectionManager:
 
         if len(self.clients[connection.app_id]) == 0:
             del self.clients[connection.app_id]
+
+        # Let app know client has disconnected
+        if self.app_connected(connection.app_id):
+            await self.apps[connection.app_id].send_heartbeat(connection.id, False)
 
     def app_connected(self, app_id: str) -> bool:
         return app_id in self.apps
