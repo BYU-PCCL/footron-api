@@ -5,7 +5,7 @@ import asyncio
 import dataclasses
 import logging
 import uuid
-from typing import Dict, Union
+from typing import Dict, Union, List
 
 from fastapi import APIRouter, WebSocket
 from fastapi.concurrency import run_until_first_complete
