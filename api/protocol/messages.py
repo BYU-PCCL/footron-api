@@ -22,10 +22,10 @@ class MessageType(Enum):
     CONNECT = "con"
     #: App response to client connection request
     ACCESS = "acc"
-    #: Application-defined messages, including requests, to the app
-    APPLICATION_APP = "app"
-    #: Application-defined messages, including requests, to the client
+    #: Application-defined messages, including requests, from the client
     APPLICATION_CLIENT = "cap"
+    #: Application-defined messages, including requests, from the app
+    APPLICATION_APP = "app"
     #: Request to change app runtime settings, handled by router
     DISPLAY_SETTINGS = "dse"
     #: Lifecycle updates (pause, resume)
@@ -82,12 +82,12 @@ class ApplicationMessage(BaseMessage):
     #: Request ID
     body: Any
     req: Optional[str] = None
-    type = MessageType.APPLICATION_APP
+    type = MessageType.APPLICATION_CLIENT
 
 
 @dataclasses.dataclass
 class ClientBoundApplicationMessage(ApplicationMessage, ClientBoundMixin):
-    type = MessageType.APPLICATION_CLIENT
+    type = MessageType.APPLICATION_APP
 
 
 class DisplaySettings(TypedDict):
@@ -116,8 +116,8 @@ message_type_map: Dict[MessageType, Type[BaseMessage]] = {
     MessageType.HEARTBEAT_CLIENT: ClientHeartbeatMessage,
     MessageType.CONNECT: ConnectMessage,
     MessageType.ACCESS: AccessMessage,
-    MessageType.APPLICATION_APP: ApplicationMessage,
-    MessageType.APPLICATION_CLIENT: ClientBoundApplicationMessage,
+    MessageType.APPLICATION_CLIENT: ApplicationMessage,
+    MessageType.APPLICATION_APP: ClientBoundApplicationMessage,
     MessageType.DISPLAY_SETTINGS: DisplaySettingsMessage,
     MessageType.LIFECYCLE: LifecycleMessage,
 }
