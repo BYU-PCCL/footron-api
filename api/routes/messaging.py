@@ -153,7 +153,7 @@ class _ClientConnection:
     closed = False
 
     async def send_message(self, message: protocol.BaseMessage):
-        return self.queue.put(message)
+        return await self.queue.put(message)
 
     async def send_heartbeat(self, up: bool) -> bool:
         await _checked_send(
