@@ -228,7 +228,9 @@ class _ConnectionManager:
 _manager = _ConnectionManager()
 
 
-@router.websocket("/in/<app_id>")
+# Until https://github.com/tiangolo/fastapi/pull/2640 is merged in, the prefix specified in our APIRouter won't apply to
+#  websocket routes, so we have to manually set them
+@router.websocket("/messaging/in/{app_id}")
 async def messaging_in(websocket: WebSocket, app_id: str):
     connection = _ClientConnection(websocket, app_id, str(uuid.uuid4()), _manager)
 
@@ -240,7 +242,7 @@ async def messaging_in(websocket: WebSocket, app_id: str):
     await _manager.remove_client(connection)
 
 
-@router.websocket("/out/<app_id>")
+@router.websocket("/messaging/out/{app_id}")
 async def messaging_in(websocket: WebSocket, app_id: str):
     connection = _AppConnection(websocket, app_id, _manager)
 
