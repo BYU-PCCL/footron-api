@@ -155,7 +155,7 @@ class _ClientConnection:
     async def send_message(self, message: protocol.BaseMessage):
         return await self.queue.put(message)
 
-    async def send_heartbeat(self, up: bool) -> bool:
+    async def send_heartbeat(self, up: bool):
         await _checked_send(
             protocol.serialize(protocol.HeartbeatMessage.create(up=up)), self.socket
         )
