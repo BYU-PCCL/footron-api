@@ -2,6 +2,7 @@ import aiohttp
 
 from ..constants import JsonDict
 
+# TODO: This should be configurable
 CONTROLLER_URL = "http://localhost:5000"
 
 _ENDPOINT_EXPERIENCES = "/experiences"
