@@ -66,6 +66,7 @@ async def handler():
     uri = f"ws://localhost:8000/messaging/out/{APP_NAME}"
     async with websockets.connect(uri) as websocket:
         state_push_task = asyncio.ensure_future(state_push())
+        # noinspection PyTypeChecker
         consumer_task = asyncio.ensure_future(consumer_handler(websocket))
         producer_task = asyncio.ensure_future(producer_handler(websocket))
         done, pending = await asyncio.wait(
