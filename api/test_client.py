@@ -74,7 +74,8 @@ async def handle_message(message):
 
 async def consumer_handler(websocket):
     async for message in websocket:
-        await handle_message(json.loads(message))
+        if not await handle_message(json.loads(message)):
+            return
 
 
 async def producer_handler(websocket):
