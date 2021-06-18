@@ -268,6 +268,7 @@ class _ConnectionManager:
         self.clients[connection.app_id][connection.id] = connection
 
     async def remove_client(self, connection: _ClientConnection):
+        # TODO: Consider whether there is a place in the protocol for a close message with a custom reason string
         await connection.close()
         if (
             connection.app_id not in self.clients
