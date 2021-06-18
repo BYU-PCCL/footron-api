@@ -326,11 +326,13 @@ async def messaging_in(websocket: WebSocket, app_id: str):
     connection = _ClientConnection(websocket, app_id, str(uuid.uuid4()), _manager)
 
     await _manager.add_client(connection)
-    await run_until_first_complete(
-        (connection.receive_handler, {}),
-        (connection.send_handler, {}),
-    )
-    await _manager.remove_client(connection)
+    try:
+        await run_until_first_complete(
+            (connection.receive_handler, {}),
+            (connection.send_handler, {}),
+        )
+    finally:
+        await _manager.remove_client(connection)
 
 
 @router.websocket("/messaging/out/{app_id}")
@@ -338,8 +340,10 @@ async def messaging_in(websocket: WebSocket, app_id: str):
     connection = _AppConnection(websocket, app_id, _manager)
 
     await _manager.add_app(connection)
-    await run_until_first_complete(
-        (connection.receive_handler, {}),
-        (connection.send_handler, {}),
-    )
-    await _manager.remove_app(connection)
+    try:
+        await run_until_first_complete(
+            (connection.receive_handler, {}),
+            (connection.send_handler, {}),
+        )
+    finally:
+        await _manager.remove_app(connection)
