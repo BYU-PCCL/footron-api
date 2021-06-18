@@ -20,4 +20,4 @@ async def collections():
 
 @router.get("/current")
 async def current_experience():
-    return await controller_api.current_experience()
+    return await controller_api.current_experience(use_cache=False)
