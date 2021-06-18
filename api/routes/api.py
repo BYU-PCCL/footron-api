@@ -10,14 +10,14 @@ router = APIRouter(
 
 @router.get("/experiences")
 async def experiences():
-    return controller_api.experiences()
+    return await controller_api.experiences()
 
 
 @router.get("/collections")
 async def collections():
-    return controller_api.collections()
+    return await controller_api.collections()
 
 
 @router.get("/current")
 async def current_experience():
-    return controller_api.current_experience()
+    return await controller_api.current_experience()
