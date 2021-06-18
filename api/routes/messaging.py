@@ -105,7 +105,7 @@ class _AppConnection:
             return await self._send_to_client(message)
 
         if isinstance(message, protocol.DisplaySettingsMessage):
-            return await controller_api.update_display_settings(message.settings)
+            return await controller_api.patch_current_experience(message.settings)
 
         raise protocol.UnhandledMessageType(
             f"Unhandled message type '{message.type}' from app '{self.id}'"

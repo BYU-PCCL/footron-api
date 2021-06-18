@@ -1,7 +1,6 @@
 import aiohttp
 
 from ..constants import JsonDict
-from .. import protocol
 
 CONTROLLER_URL = "http://localhost:5000"
 
@@ -47,8 +46,14 @@ class ControllerApi:
 
         return self._current_experience
 
-    async def update_display_settings(self, settings: protocol.DisplaySettings) -> bool:
+    async def set_current_experience(self, id: str) -> bool:
         async with self._aiohttp_session.put(
-            self._url_with_endpoint(_ENDPOINT_CURRENT_EXPERIENCE), json=settings
+            self._url_with_endpoint(_ENDPOINT_CURRENT_EXPERIENCE), json={"id": id}
         ) as response:
-            return response.ok
+            return await response.json()
+
+    async def patch_current_experience(self, updates: JsonDict) -> bool:
+        async with self._aiohttp_session.patch(
+            self._url_with_endpoint(_ENDPOINT_CURRENT_EXPERIENCE), json=updates
+        ) as response:
+            return await response.json()
