@@ -15,10 +15,16 @@ class ControllerApi:
         self._experiences = None
         self._collections = None
         self._current_experience = None
+        self._last_update = None
 
     @staticmethod
     def _url_with_endpoint(endpoint) -> str:
         return f"{CONTROLLER_URL}{endpoint}"
+
+    def _invalidate_cache(self):
+        self._experiences = None
+        self._collections = None
+        self._current_experience = None
 
     async def _get_json_response(self, endpoint) -> JsonDict:
         async with self._aiohttp_session.get(
@@ -43,6 +49,10 @@ class ControllerApi:
             self._current_experience = await self._get_json_response(
                 _ENDPOINT_CURRENT_EXPERIENCE
             )
+
+            if self._current_experience["last_update"] != self._last_update:
+                self._last_update = self._current_experience["last_update"]
+                self._invalidate_cache()
 
         return self._current_experience
 
