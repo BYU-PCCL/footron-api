@@ -33,7 +33,7 @@ class CurrentExperienceUpdate(BaseModel):
     #  https://github.com/samuelcolvin/pydantic/issues/506#issuecomment-522255484 might be helpful
 
 
-def validate_auth_code(credentials: HTTPBasicCredentials = Depends(_security)):
+async def validate_auth_code(credentials: HTTPBasicCredentials = Depends(_security)):
     """
     Based on the example at https://fastapi.tiangolo.com/advanced/security/http-basic-auth/#check-the-username
 
@@ -54,7 +54,7 @@ def validate_auth_code(credentials: HTTPBasicCredentials = Depends(_security)):
         )
 
     if matches_next_code:
-        auth_manager.advance()
+        await auth_manager.advance()
 
     # TODO: Decide whether it actually makes sense to return this in any case
     return auth_manager.code
