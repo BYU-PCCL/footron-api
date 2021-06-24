@@ -58,13 +58,13 @@ class ControllerApi:
 
         return self._current_experience
 
-    async def set_current_experience(self, id: str) -> bool:
+    async def set_current_experience(self, id: str) -> JsonDict:
         async with self._aiohttp_session.put(
             self._url_with_endpoint(_ENDPOINT_CURRENT_EXPERIENCE), json={"id": id}
         ) as response:
             return await response.json()
 
-    async def patch_current_experience(self, updates: JsonDict) -> bool:
+    async def patch_current_experience(self, updates: JsonDict) -> JsonDict:
         async with self._aiohttp_session.patch(
             self._url_with_endpoint(_ENDPOINT_CURRENT_EXPERIENCE), json=updates
         ) as response:
