@@ -8,6 +8,7 @@ CONTROLLER_URL = "http://localhost:5000"
 _ENDPOINT_EXPERIENCES = "/experiences"
 _ENDPOINT_COLLECTIONS = "/collections"
 _ENDPOINT_CURRENT_EXPERIENCE = "/current"
+_ENDPOINT_PLACARD = "/placard"
 
 
 class ControllerApi:
@@ -66,5 +67,15 @@ class ControllerApi:
     async def patch_current_experience(self, updates: JsonDict) -> bool:
         async with self._aiohttp_session.patch(
             self._url_with_endpoint(_ENDPOINT_CURRENT_EXPERIENCE), json=updates
+        ) as response:
+            return await response.json()
+
+    async def placard(self) -> JsonDict:
+        # No caching for placard, make @vinhowe explain himself
+        return await self._get_json_response(_ENDPOINT_PLACARD)
+
+    async def patch_placard(self, updates: JsonDict) -> JsonDict:
+        async with self._aiohttp_session.patch(
+                self._url_with_endpoint(_ENDPOINT_PLACARD), json=updates
         ) as response:
             return await response.json()
