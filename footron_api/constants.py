@@ -2,7 +2,7 @@ import os
 from typing import Dict, Any, Union
 
 _BASE_URL_ENV = "FT_BASE_URL"
-_CONTROLLER_URL_ENV = "FT_BASE_URL"
+_CONTROLLER_URL_ENV = "FT_CONTROLLER_URL"
 
 # The user-facing URL--where the static website is hosted
 BASE_URL = (
