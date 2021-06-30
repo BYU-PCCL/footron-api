@@ -10,6 +10,8 @@ _ENDPOINT_COLLECTIONS = "/collections"
 _ENDPOINT_CURRENT_EXPERIENCE = "/current"
 _ENDPOINT_PLACARD = "/placard"
 
+_EXPERIENCE_FIELD_LAST_UPDATE = "last_update"
+
 
 class ControllerApi:
     def __init__(self, aiohttp_session=aiohttp.ClientSession()):
@@ -47,13 +49,23 @@ class ControllerApi:
         return self._collections
 
     async def current_experience(self, use_cache=True) -> JsonDict:
-        if self._current_experience is None or not use_cache:
+        if (
+            self._current_experience is None
+            or _EXPERIENCE_FIELD_LAST_UPDATE not in self._current_experience
+            or not use_cache
+        ):
             self._current_experience = await self._get_json_response(
                 _ENDPOINT_CURRENT_EXPERIENCE
             )
 
-            if self._current_experience["last_update"] != self._last_update:
-                self._last_update = self._current_experience["last_update"]
+            if (
+                _EXPERIENCE_FIELD_LAST_UPDATE in self._current_experience
+                and self._current_experience[_EXPERIENCE_FIELD_LAST_UPDATE]
+                != self._last_update
+            ):
+                self._last_update = self._current_experience[
+                    _EXPERIENCE_FIELD_LAST_UPDATE
+                ]
                 self._invalidate_cache()
 
         return self._current_experience
