@@ -2,7 +2,7 @@ import secrets
 from typing import Union, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.security import APIKeyCookie, APIKeyHeader
 from pydantic import BaseModel
 
 from ..data import controller_api, auth_manager
@@ -18,7 +18,10 @@ router = APIRouter(
     tags=["api"],
 )
 
-_security = HTTPBasic()
+_API_KEY_NAME = "X-AUTH-CODE"
+
+_api_key_header = APIKeyHeader(name=_API_KEY_NAME, auto_error=False)
+_api_key_cookie = APIKeyCookie(name=_API_KEY_NAME, auto_error=False)
 
 
 # TODO: Consider moving these models somewhere (possibly to use Pydantic for models more broadly)
@@ -33,24 +36,37 @@ class CurrentExperienceUpdate(BaseModel):
     #  https://github.com/samuelcolvin/pydantic/issues/506#issuecomment-522255484 might be helpful
 
 
-async def validate_auth_code(credentials: HTTPBasicCredentials = Depends(_security)):
+async def validate_auth_code(
+    header_key: str = Depends(_api_key_header),
+    cookie_key: str = Depends(_api_key_cookie),
+):
     """
     Based on the example at https://fastapi.tiangolo.com/advanced/security/http-basic-auth/#check-the-username
 
-    :param credentials:
+    :param cookie_key:
+    :param header_key:
     :raises HTTPException: if credentials are incorrect:
     """
 
+    # Precedence: header > cookie
+
+    if header_key is not None:
+        client_code = header_key
+    elif cookie_key is not None:
+        client_code = cookie_key
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not authenticated"
+        )
+
     # See https://fastapi.tiangolo.com/advanced/security/http-basic-auth/#timing-attacks for some background on the
     # use of secrets.compare_digest() here
-    correct_username = secrets.compare_digest(credentials.username, _USERNAME)
-    matches_code = secrets.compare_digest(credentials.password, auth_manager.code)
-    matches_next_code = secrets.compare_digest(credentials.password, auth_manager.next_code)
-    if not (correct_username and (matches_code or matches_next_code)):
+    matches_code = secrets.compare_digest(client_code, auth_manager.code)
+    matches_next_code = secrets.compare_digest(client_code, auth_manager.next_code)
+    if not (matches_code or matches_next_code):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or code",
-            headers={"WWW-Authenticate": "Basic"},
+            detail="Invalid auth code",
         )
 
     if matches_next_code:
@@ -60,30 +76,26 @@ async def validate_auth_code(credentials: HTTPBasicCredentials = Depends(_securi
     return auth_manager.code
 
 
-@router.get("/experiences")
-async def experiences(_: str = Depends(validate_auth_code)):
+@router.get("/experiences", dependencies=[Depends(validate_auth_code)])
+async def experiences():
     return await controller_api.experiences()
 
 
-@router.get("/collections")
-async def collections(_: str = Depends(validate_auth_code)):
+@router.get("/collections", dependencies=[Depends(validate_auth_code)])
+async def collections():
     return await controller_api.collections()
 
 
-@router.get("/current")
-async def current_experience(_: str = Depends(validate_auth_code)):
+@router.get("/current", dependencies=[Depends(validate_auth_code)])
+async def current_experience():
     return await controller_api.current_experience(use_cache=False)
 
 
-@router.put("/current")
-async def set_current_experience(
-    change: CurrentExperienceChange, _: str = Depends(validate_auth_code)
-):
+@router.put("/current", dependencies=[Depends(validate_auth_code)])
+async def set_current_experience(change: CurrentExperienceChange):
     return await controller_api.set_current_experience(id=change.id)
 
 
-@router.patch("/current")
-async def update_current_experience(
-    update: CurrentExperienceUpdate, _: str = Depends(validate_auth_code)
-):
+@router.patch("/current", dependencies=[Depends(validate_auth_code)])
+async def update_current_experience(update: CurrentExperienceUpdate):
     return await controller_api.set_current_experience(**update.dict())
