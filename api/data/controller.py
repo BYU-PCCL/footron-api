@@ -88,6 +88,6 @@ class ControllerApi:
 
     async def patch_placard(self, updates: JsonDict) -> JsonDict:
         async with self._aiohttp_session.patch(
-                self._url_with_endpoint(_ENDPOINT_PLACARD), json=updates
+            self._url_with_endpoint(_ENDPOINT_PLACARD), json=updates
         ) as response:
             return await response.json()
