@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import string
 import secrets
 import urllib.parse
@@ -6,6 +7,7 @@ from typing import List, Callable
 
 from .controller import ControllerApi
 
+logger = logging.getLogger(__name__)
 
 # Note that bytes != characters; see https://docs.python.org/3/library/secrets.html#secrets.token_urlsafe.
 #
@@ -55,7 +57,9 @@ class AuthManager:
         [listener(self.code) for listener in self._listeners]
 
     async def _update_placard_url(self):
-        await self._controller.patch_placard({"url": self._create_url()})
+        new_url = self._create_url()
+        logger.info(f"New url is {new_url}")
+        await self._controller.patch_placard({"url": new_url})
 
     def _create_url(self):
         return urllib.parse.urljoin(self._base_domain, f"/c/{self.next_code}")
