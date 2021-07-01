@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -29,6 +31,11 @@ app.add_middleware(
 )
 
 
-@app.get("/", response_class=HTMLResponse)
-async def _root():
-    return """<p>Welcome to the CSTV API!</p>"""
+# See https://github.com/encode/starlette/issues/864#issuecomment-653076434
+class PolledEndpointsFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        return record.getMessage().find("GET /api/current") == -1
+
+
+# Filter out /endpoint
+logging.getLogger("uvicorn.access").addFilter(PolledEndpointsFilter())
