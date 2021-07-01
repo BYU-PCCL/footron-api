@@ -5,6 +5,8 @@ import secrets
 import urllib.parse
 from typing import List, Callable
 
+import aiohttp
+
 from .controller import ControllerApi
 
 logger = logging.getLogger(__name__)
@@ -65,9 +67,13 @@ class AuthManager:
     async def _update_placard_url_loop(self):
         """Check if QR code is empty and populate it with URL if so"""
         while True:
-            placard_data = await self._controller.placard()
-            if placard_data["url"] is None:
-                await self._update_placard_url()
+            try:
+                placard_data = await self._controller.placard()
+                if placard_data["url"] is None:
+                    await self._update_placard_url()
+            except aiohttp.ClientError:
+                # TODO: Determine if it's worth showing errors here or if we can just fire and forget
+                pass
 
             await asyncio.sleep(1)
 
