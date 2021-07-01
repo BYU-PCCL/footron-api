@@ -2,6 +2,7 @@ import secrets
 from typing import Union, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import HTMLResponse
 from fastapi.security import APIKeyCookie, APIKeyHeader
 from pydantic import BaseModel
 
@@ -74,6 +75,11 @@ async def validate_auth_code(
 
     # TODO: Decide whether it actually makes sense to return this in any case
     return auth_manager.code
+
+
+@router.get("/", response_class=HTMLResponse)
+async def _root():
+    return """<p>Welcome to the CSTV API!</p>"""
 
 
 @router.get("/experiences", dependencies=[Depends(validate_auth_code)])
