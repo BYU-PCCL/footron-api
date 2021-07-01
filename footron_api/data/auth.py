@@ -40,6 +40,7 @@ class AuthManager:
         self._base_domain = base_domain
         self._listeners = []
         asyncio.get_event_loop().create_task(self._update_placard_url())
+        asyncio.get_event_loop().create_task(self._update_placard_url_loop())
 
     async def advance(self):
         self.code = self.next_code
@@ -60,6 +61,15 @@ class AuthManager:
         new_url = self._create_url()
         logger.info(f"New url is {new_url}")
         await self._controller.patch_placard({"url": new_url})
+
+    async def _update_placard_url_loop(self):
+        """Check if QR code is empty and populate it with URL if so"""
+        while True:
+            placard_data = await self._controller.placard()
+            if placard_data["url"] is None:
+                await self._update_placard_url()
+
+            await asyncio.sleep(1)
 
     def _create_url(self):
         return urllib.parse.urljoin(self._base_domain, f"/c/{self.next_code}")
