@@ -338,7 +338,7 @@ async def messaging_in(websocket: WebSocket, app_id: str):
 
 
 @router.websocket("/messaging/out/{app_id}")
-async def messaging_in(websocket: WebSocket, app_id: str):
+async def messaging_out(websocket: WebSocket, app_id: str):
     connection = _AppConnection(websocket, app_id, _manager)
 
     await _manager.add_app(connection)
