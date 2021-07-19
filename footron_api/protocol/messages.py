@@ -10,6 +10,8 @@ from .errors import *
 
 PROTOCOL_VERSION = 1
 
+FIELD_MSG_TYPE = "type"
+
 
 # TODO: Should we consider splitting up messages (and their types) by direction?
 @enum.unique
@@ -30,9 +32,6 @@ class MessageType(Enum):
     DISPLAY_SETTINGS = "dse"
     #: Lifecycle updates (pause, resume)
     LIFECYCLE = "lcy"
-
-
-FIELD_MSG_TYPE = "type"
 
 
 @dataclasses.dataclass
