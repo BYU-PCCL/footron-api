@@ -44,6 +44,18 @@ class AuthManager:
         asyncio.get_event_loop().create_task(self._update_placard_url())
         asyncio.get_event_loop().create_task(self._update_placard_url_loop())
 
+    def check(self, code: str):
+        return self._check(code, self.code)
+
+    def check_next(self, code: str):
+        return self._check(code, self.next_code)
+
+    @staticmethod
+    def _check(a: str, b: str):
+        # See https://fastapi.tiangolo.com/advanced/security/http-basic-auth/#timing-attacks for some background on the
+        # use of secrets.compare_digest() here
+        return secrets.compare_digest(a, b)
+
     async def advance(self):
         self.code = self.next_code
         self.next_code = self._generate_code()

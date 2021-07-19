@@ -1,4 +1,3 @@
-import secrets
 from typing import Union, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -60,10 +59,8 @@ async def validate_auth_code(
             status_code=status.HTTP_403_FORBIDDEN, detail="Not authenticated"
         )
 
-    # See https://fastapi.tiangolo.com/advanced/security/http-basic-auth/#timing-attacks for some background on the
-    # use of secrets.compare_digest() here
-    matches_code = secrets.compare_digest(client_code, auth_manager.code)
-    matches_next_code = secrets.compare_digest(client_code, auth_manager.next_code)
+    matches_code = auth_manager.check(client_code)
+    matches_next_code = auth_manager.check_next(client_code)
     if not (matches_code or matches_next_code):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
