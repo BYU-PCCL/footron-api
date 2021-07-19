@@ -15,14 +15,29 @@ FIELD_MSG_TYPE = "type"
 
 @enum.unique
 class MessageType(Enum):
+
+    #
+    # Heartbeat messages
+    #
+
     #: App connection status update
     HEARTBEAT_APP = "ahb"
     #: Client connection status update
     HEARTBEAT_CLIENT = "chb"
+
+    #
+    # Authentication-level messages
+    #
+
     #: Client connection request
     CONNECT = "con"
     #: App response to client connection request
     ACCESS = "acc"
+
+    #
+    # Application-level messages
+    #
+
     #: Application-defined messages, including requests, from the client
     APPLICATION_CLIENT = "cap"
     #: Application-defined messages, including requests, from the app
