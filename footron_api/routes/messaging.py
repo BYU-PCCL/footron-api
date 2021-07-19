@@ -13,7 +13,7 @@ from starlette.websockets import WebSocketState
 
 import footron_protocol as protocol
 from ..constants import JsonDict
-from ..data import controller_api
+from ..data import controller_api, auth_manager, AuthManager
 from ..util import asyncio_interval
 
 router = APIRouter(
@@ -38,9 +38,15 @@ async def _checked_send(message: JsonDict, socket: WebSocket) -> bool:
     return True
 
 
-@dataclasses.dataclass()
+@dataclasses.dataclass
 class _AppBoundMessageInfo:
     client: str
+    message: protocol.BaseMessage
+
+
+@dataclasses.dataclass
+class _ClientBoundMessageInfo:
+    app: str
     message: protocol.BaseMessage
 
 
@@ -56,6 +62,7 @@ class _AppConnection:
     queue: asyncio.Queue[
         Union[protocol.BaseMessage, _AppBoundMessageInfo]
     ] = asyncio.Queue()
+    clients: Dict[str, _ClientConnection] = dataclasses.field(default_factory=dict)
     closed = False
 
     async def send_message_from_client(
@@ -82,26 +89,66 @@ class _AppConnection:
         if isinstance(clients, str):
             clients = [clients]
 
+        # TODO: This is probably too verbose, consider removing it
         logger.info(f"Sending heartbeat to app: {self.id}")
         return await _checked_send(
             protocol.serialize(protocol.HeartbeatClientMessage(up=up, clients=clients)),
             self.socket,
         )
 
+    async def send_client_heartbeats(self):
+        return await self.send_heartbeat(list(self.clients.keys()), True)
+
+    async def remove_client(self, client_id: str):
+        """Notify app that a client has been disconnected."""
+        if client_id not in self.clients:
+            return
+
+        del self.clients[client_id]
+
+        return await self.send_heartbeat(client_id, False)
+
+    async def add_client(self, client: _ClientConnection):
+        # TODO: Should we throw an exception here if a client already exists in the mapping with that ID? Or is just
+        #  overwriting it (like we do now) a reasonable default?
+
+        self.clients[client.id] = client
+
+        # Send first heartbeat including new client
+        return await self.send_client_heartbeats()
+
+    def has_client(self, client_id: str):
+        return client_id in self.clients
+
     async def receive_handler(self):
+        """Handle messages from socket: app -> client"""
         async for message in self.socket.iter_json():
             await self._handle_receive_message(protocol.deserialize(message))
 
     async def send_handler(self):
-        """Handle messages in queue: app -> client"""
+        """Handle messages in queue: client -> app"""
         while True:
-            await self._handle_send_message(await self.queue.get())
+            if not await self._handle_send_message(await self.queue.get()):
+                return
 
     async def _handle_receive_message(self, message: protocol.BaseMessage):
         if hasattr(message, "client"):
-            if not self.manager.app_has_client(self.id, message.client):
+            # TODO: Assert that these two statements are always equal
+            if not self.has_client(message.client) or not self.manager.client_connected(
+                message.client
+            ):
+                # This should always be an developer error, but if it isn't (e.g. we're sending positive heartbeats that
+                # include disconnected clients), we need to fix our code
+                logger.warning(
+                    f"App {self.id} attempted to send a message to non-existent client with id {message.client}"
+                )
                 await self.send_heartbeat(message.client, False)
                 return
+
+            if isinstance(message, protocol.AccessMessage):
+                self.add_client(
+                    self.manager.clients[message.client]
+                ) if message.accepted else self.remove_client(message.client)
 
             return await self._send_to_client(message)
 
@@ -109,7 +156,7 @@ class _AppConnection:
             return await controller_api.patch_current_experience(message.settings)
 
         raise protocol.UnhandledMessageTypeError(
-            f"Unhandled message type '{message.type}' from app '{self.id}'"
+            f"Unable to handle message type '{message.type}' from app '{self.id}'"
         )
 
     async def _handle_send_message(
@@ -139,24 +186,44 @@ class _AppConnection:
                 f"App '{self.id}' attempted to send message to client without specifying client ID"
             )
 
-        return await self.manager.clients[self.id][message.client].send_message(message)
+        return await self.clients[message.client].send_message_from_app(
+            self.id, message
+        )
 
 
 @dataclasses.dataclass
 class _ClientConnection:
     socket: WebSocket
-    app_id: str
     id: str
+    auth_code: str
     # TODO: I don't love how we're passing in an instance of the containing class
     #  here, is this clean?
     manager: _ConnectionManager
-    # Until this is true, all messages other than connection requests will be blocked
-    accepted: bool = False
-    queue: asyncio.Queue[protocol.BaseMessage] = asyncio.Queue()
+    # While this is None, no app has accepted this client connection
+    app_id: str = None
+    queue: asyncio.Queue[
+        Union[protocol.BaseMessage, _ClientBoundMessageInfo]
+    ] = asyncio.Queue()
     closed = False
 
-    async def send_message(self, message: protocol.BaseMessage):
-        return await self.queue.put(message)
+    async def send_message_from_app(self, app_id: str, message: protocol.BaseMessage):
+        return await self.queue.put(_ClientBoundMessageInfo(app_id, message))
+
+    async def send_access_message(
+        self, accepted: bool, *, reason: str = None, app_id: str = None
+    ):
+        # This needs to be sent immediately
+        return await _checked_send(
+            protocol.serialize(
+                protocol.AccessMessage.create(
+                    accepted=accepted, reason=reason, app=app_id
+                )
+            ),
+            self.socket,
+        )
+
+    async def deauth(self, reason="Your authentication code is expired or invalid"):
+        return await self.send_access_message(False, reason=reason)
 
     async def send_heartbeat(self, up: bool):
         await _checked_send(
@@ -182,47 +249,98 @@ class _ClientConnection:
     async def send_handler(self):
         """Handle messages in queue: app -> client"""
         while True:
-            await self._handle_send_message(await self.queue.get())
+            if not await self._handle_send_message(await self.queue.get()):
+                return
 
     async def _handle_receive_message(self, data: JsonDict):
-        if not self.manager.app_connected(self.app_id):
-            return await self.send_heartbeat(False)
-
         message = protocol.deserialize(data)
 
-        try:
-            self._check_message_auth(message)
-        except protocol.AccessError as error:
-            logging.error(error)
-            return
+        app_id = (
+            message.app if isinstance(message, protocol.ConnectMessage) else self.app_id
+        )
 
-        return await self.manager.apps[self.app_id].send_message_from_client(
+        if not app_id:
+            raise protocol.AccessError(
+                "Sending an application-level message before authentication is not allowed"
+            )
+
+        if isinstance(
+            message, (protocol.HeartbeatMessage, protocol.ClientHeartbeatMessage)
+        ):
+            # Heartbeat messages should be created by router only based on status of websocket connections
+            raise protocol.ProtocolError(
+                "Clients are not allowed to send heartbeat messages"
+            )
+
+        if isinstance(message, protocol.ErrorMessage):
+            raise protocol.ProtocolError(
+                "Clients are not allowed to send protocol-level error messages"
+            )
+
+        if not isinstance(
+            message,
+            (
+                protocol.AccessMessage,
+                protocol.LifecycleMessage,
+                protocol.ApplicationMessage,
+            ),
+        ):
+            raise protocol.ProtocolError(
+                f"Clients are not allowed to send message type '{message.type}'"
+            )
+
+        if not self.manager.app_connected(app_id):
+            return await self.send_heartbeat(False)
+
+        return await self.manager.apps[app_id].send_message_from_client(
             self.id, message
         )
 
-    async def _handle_send_message(self, message: protocol.BaseMessage):
-        self._pre_send(message)
-        serialized_message = protocol.serialize(message)
+    async def _handle_send_message(
+        self, item: Union[protocol.BaseMessage, _ClientBoundMessageInfo]
+    ):
+        """Return false to cancel connection, true to continue without sending"""
+        message = None
+        serialized_message = None
+
+        if isinstance(item, _ClientBoundMessageInfo):
+            if not self._pre_send(item.message):
+                return True
+            message = item.message
+            serialized_message = protocol.serialize(message)
+            # Client needs to know source of app messages
+            serialized_message["app"] = item.app
+        if isinstance(item, protocol.BaseMessage):
+            if not self._pre_send(item):
+                return True
+            message = item
+            serialized_message = protocol.serialize(message)
+
+        if message is None:
+            raise TypeError("Message wasn't _AppBoundMessageInfo or BaseMessage")
+
         # Client doesn't need to know its ID because it doesn't have to self-identify
         del serialized_message["client"]
         await _checked_send(serialized_message, self.socket)
+
         if not self._post_send(message):
             # Cancel connection
-            return
+            return False
 
-    def _check_message_auth(self, message: protocol.BaseMessage):
-        if not self.accepted and not isinstance(message, protocol.ConnectMessage):
-            # Return statement here will abort connection
-            raise protocol.AccessError(
-                f"Unauthorized client {self.id} attempted to send an authenticated message"
-            )
+        return True
 
     def _pre_send(self, message: protocol.BaseMessage) -> bool:
+        """This function is only intended to prevent misguided apps from sending application messages to unauthenticated
+        clients, and its result should never be used to close a client connection--that responsibility falls to
+        _post_send()"""
         if isinstance(message, protocol.AccessMessage):
-            self.accepted = message.accepted
+            # An access message must always be sent--by this point we've already prevented the app from sending its own
+            # access messages without a lock
+            if message.accepted:
+                self.app_id = message.app
             return True
 
-        if self.accepted:
+        if self.app_id:
             return True
 
         # Defensively prevent apps from sending messages to clients they haven't
@@ -239,19 +357,20 @@ class _ClientConnection:
 
 
 class _ConnectionManager:
-    def __init__(self):
+    def __init__(self, auth: AuthManager):
         self.apps: Dict[str, _AppConnection] = {}
-        # Important to note here that clients can be added for a specific app
-        # regardless of whether that app exists in self.apps. This is so that
-        # self.apps can represent only active connections to apps. Handling clients
-        # with no associated client is a different concern.
-        self.clients: Dict[str, Dict[str, _ClientConnection]] = {}
+        # dict[connection id, connection]--multiple clients are only allowed when either a lock is specified or
+        # multiuser is true in app config
+        self.clients: Dict[str, _ClientConnection] = {}
+        self.auth = auth
 
-    async def add_app(self, connection: _AppConnection):
+        self.auth.add_listener(self._disconnect_deauthed_clients)
+
+    async def connect_app(self, connection: _AppConnection):
         await connection.connect()
         self.apps[connection.id] = connection
 
-    async def remove_app(self, connection: _AppConnection):
+    async def disconnect_app(self, connection: _AppConnection):
         await connection.close()
 
         if connection.id not in self.apps:
@@ -259,66 +378,73 @@ class _ConnectionManager:
 
         del self.apps[connection.id]
 
-        # Disconnect clients
-        if connection.id in self.clients:
-            await asyncio.gather(
-                *[self.remove_client(c) for c in self.clients[connection.id].values()]
-            )
-
-    async def add_client(self, connection: _ClientConnection):
-        await connection.connect()
-
-        if connection.app_id not in self.clients:
-            self.clients[connection.app_id] = {}
-
-        self.clients[connection.app_id][connection.id] = connection
-
-    async def remove_client(self, connection: _ClientConnection):
-        # TODO: Consider whether there is a place in the protocol for a close message
-        #  with a custom reason string
-        await connection.close()
-
-        if (
-            connection.app_id not in self.clients
-            or connection.id not in self.clients[connection.app_id]
-        ):
+    async def try_connect_client(self, connection: _ClientConnection):
+        if not self.auth.check(connection.auth_code):
+            await connection.deauth()
+            await connection.close()
             return
 
-        del self.clients[connection.app_id][connection.id]
+        await connection.connect()
 
-        if len(self.clients[connection.app_id]) == 0:
-            del self.clients[connection.app_id]
+        self.clients[connection.id] = connection
+
+    async def disconnect_client(self, connection: _ClientConnection, deauth=True):
+        # @vinhowe: If deauth is false, well-behaved clients may try to reconnect with the same auth information. I'm
+        # not sure whether there's actually a scenario where we don't want to deauth a client on disconnect because
+        # client sessions are now scoped
+        if deauth:
+            await connection.deauth()
+
+        await connection.close()
+
+        if connection.id not in self.clients:
+            return
+
+        del self.clients[connection.id]
 
         # Let app know client has disconnected
-        if self.app_connected(connection.app_id):
-            await self.apps[connection.app_id].send_heartbeat(connection.id, False)
+        if connection.app_id and self.app_connected(connection.app_id):
+            # TODO: Determine if we should be using a higher level API here, e.g. something like .disconnect_client()
+            #  instead of .send_heartbeat()
+            await self.apps[connection.app_id].remove_client(connection.id)
 
     def app_connected(self, app_id: str) -> bool:
         return app_id in self.apps
 
-    def app_has_client(self, app_id: str, client_id: str) -> bool:
-        # See note on self.clients in __init__
-        return app_id in self.clients and client_id in self.clients[app_id]
+    def client_connected(self, client_id: str) -> bool:
+        return client_id in self.clients
 
     async def send_heartbeats(self):
         """Send heartbeats to all connected clients and apps"""
         tasks = []
         for app in self.apps.values():
-            client_ids = []
-            if app.id in self.clients:
-                client_ids = [c.id for c in self.clients[app.id].values()]
+            tasks.append(app.send_client_heartbeats())
 
-            tasks.append(app.send_heartbeat(client_ids, True))
+        for client in self.clients.values():
+            if not client.app_id:
+                continue
 
-        for app_id, clients in self.clients.items():
-            app_up = self.app_connected(app_id)
-            for client in clients.values():
-                tasks.append(client.send_heartbeat(app_up))
+            tasks.append(client.send_heartbeat(self.app_connected(client.app_id)))
 
         await asyncio.gather(*tasks)
 
+    async def _disconnect_deauthed_clients(self, _new_code):
+        return await asyncio.gather(
+            *map(
+                self.disconnect_client,
+                filter(
+                    lambda c: not self.auth.check(c.auth_code), self.clients.values()
+                ),
+            )
+        )
 
-_manager = _ConnectionManager()
+
+# TODO: Use FastAPI's dependency injection instead of declaring global variables to make this code testable and easier
+#  to pull out when we need a test server project that developers can use to build their own controls. See:
+#  - https://fastapi.tiangolo.com/tutorial/dependencies/
+#  - https://fastapi.tiangolo.com/tutorial/dependencies/classes-as-dependencies/
+#  - https://fastapi.tiangolo.com/advanced/advanced-dependencies/
+_manager = _ConnectionManager(auth_manager)
 
 
 @router.on_event("startup")
@@ -331,29 +457,29 @@ async def on_startup():
 # Until https://github.com/tiangolo/fastapi/pull/2640 is merged in, the prefix
 # specified in our APIRouter won't apply to websocket routes, so we have to manually
 # set them
-@router.websocket("/messaging/in/{app_id}")
-async def messaging_in(websocket: WebSocket, app_id: str):
-    connection = _ClientConnection(websocket, app_id, str(uuid.uuid4()), _manager)
+@router.websocket("/messaging/in/{auth_code}")
+async def messaging_in(websocket: WebSocket, auth_code: str):
+    connection = _ClientConnection(websocket, auth_code, str(uuid.uuid4()), _manager)
 
-    await _manager.add_client(connection)
+    await _manager.try_connect_client(connection)
     try:
         await run_until_first_complete(
             (connection.receive_handler, {}),
             (connection.send_handler, {}),
         )
     finally:
-        await _manager.remove_client(connection)
+        await _manager.disconnect_client(connection)
 
 
 @router.websocket("/messaging/out/{app_id}")
 async def messaging_out(websocket: WebSocket, app_id: str):
     connection = _AppConnection(websocket, app_id, _manager)
 
-    await _manager.add_app(connection)
+    await _manager.connect_app(connection)
     try:
         await run_until_first_complete(
             (connection.receive_handler, {}),
             (connection.send_handler, {}),
         )
     finally:
-        await _manager.remove_app(connection)
+        await _manager.disconnect_app(connection)
