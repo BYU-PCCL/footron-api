@@ -42,6 +42,8 @@ class MessageType(Enum):
     APPLICATION_CLIENT = "cap"
     #: Application-defined messages, including requests, from the app
     APPLICATION_APP = "app"
+    #: Error in either direction; a simple message
+    ERROR = "err"
     #: Request to change app runtime settings, handled by router
     DISPLAY_SETTINGS = "dse"
     #: Lifecycle updates (pause, resume)
@@ -104,6 +106,12 @@ class ClientBoundApplicationMessage(ApplicationMessage, ClientBoundMixin):
     type = MessageType.APPLICATION_APP
 
 
+@dataclasses.dataclass
+class ErrorMessage(BaseMessage):
+    error: str
+    type = MessageType.ERROR
+
+
 class DisplaySettings(TypedDict):
     end_time: int
     # Lock states:
@@ -132,6 +140,7 @@ message_type_map: Dict[MessageType, Type[BaseMessage]] = {
     MessageType.ACCESS: AccessMessage,
     MessageType.APPLICATION_CLIENT: ApplicationMessage,
     MessageType.APPLICATION_APP: ClientBoundApplicationMessage,
+    MessageType.ERROR: ErrorMessage,
     MessageType.DISPLAY_SETTINGS: DisplaySettingsMessage,
     MessageType.LIFECYCLE: LifecycleMessage,
 }
