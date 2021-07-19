@@ -3,7 +3,7 @@ import logging
 import string
 import secrets
 import urllib.parse
-from typing import List, Callable
+from typing import List, Callable, Awaitable, Union
 
 import aiohttp
 
@@ -27,7 +27,7 @@ _CODE_BYTES_COUNT = 6
 _ALPHANUMERIC_CHARS = string.ascii_letters + string.digits
 
 # (str) -> None
-_ListenerCallable = Callable[[str], None]
+_ListenerCallable = Callable[[str], Union[Awaitable[None], None]]
 
 
 class AuthManager:
@@ -59,7 +59,7 @@ class AuthManager:
     async def advance(self):
         self.code = self.next_code
         self.next_code = self._generate_code()
-        self._notify_listeners()
+        await self._notify_listeners()
         await self._update_placard_url()
 
     def add_listener(self, callback: _ListenerCallable):
@@ -68,8 +68,11 @@ class AuthManager:
     def remove_listener(self, callback: _ListenerCallable):
         self._listeners.remove(callback)
 
-    def _notify_listeners(self):
-        [listener(self.code) for listener in self._listeners]
+    async def _notify_listeners(self):
+        # TODO: Consider removing the string self.code argument from listeners because the only existing consumer so far
+        #  (the messaging router) doesn't even use it
+        # TODO also: see if we can pass in methods that aren't coroutines and await them without any problems
+        await asyncio.gather(*[listener(self.code) for listener in self._listeners])
 
     async def _update_placard_url(self):
         new_url = self._create_url()
