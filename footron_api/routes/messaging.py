@@ -336,7 +336,7 @@ class _ClientConnection:
         """This function is only intended to prevent misguided apps from sending
         application messages to unauthenticated clients, and its result should never
         be used to close a client connection--that responsibility falls to
-        _post_send() """
+        _post_send()"""
         if isinstance(message, protocol.AccessMessage):
             # An access message must always be sent--by this point we've already
             # prevented the app from sending its own access messages without a lock
