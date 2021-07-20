@@ -18,7 +18,8 @@ origins = [
     BASE_URL,
 ]
 
-# To future maintainers: if you want to have CORS headers on errors, see this discussion:
+# To future maintainers: if you want to have CORS headers on errors, see this
+# discussion:
 # https://github.com/tiangolo/fastapi/issues/775
 # TODO: See if there's any hardening we can do here
 app.add_middleware(

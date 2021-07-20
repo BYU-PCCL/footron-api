@@ -44,12 +44,14 @@ class _AppBoundMessageInfo:
     message: protocol.BaseMessage
 
 
-# TODO: Consider if AppConnection and ClientConnection are similar enough that they can share logic
+# TODO: Consider if AppConnection and ClientConnection are similar enough that they
+#  can share logic
 @dataclasses.dataclass
 class _AppConnection:
     socket: WebSocket
     id: str
-    # TODO: I don't love how we're passing in an instance of the containing class here, is this clean?
+    # TODO: I don't love how we're passing in an instance of the containing class
+    #  here, is this clean?
     manager: _ConnectionManager
     queue: asyncio.Queue[
         Union[protocol.BaseMessage, _AppBoundMessageInfo]
@@ -72,9 +74,10 @@ class _AppConnection:
         return True
 
     async def send_heartbeat(self, clients: Union[str, List[str]], up: bool):
-        # Note that an "up" heartbeat containing a list of clients is expected to be comprehensive, and any clients
-        # not listed should be removed. Likewise, a "down" heartbeat containing a list of clients should be interpreted
-        # as a list of clients to remove.
+        # Note that an "up" heartbeat containing a list of clients is expected to be
+        # comprehensive, and any clients not listed should be removed. Likewise,
+        # a "down" heartbeat containing a list of clients should be interpreted as a
+        # list of clients to remove.
 
         if isinstance(clients, str):
             clients = [clients]
@@ -130,11 +133,13 @@ class _AppConnection:
     async def _send_to_client(
         self, message: Union[protocol.BaseMessage, protocol.ClientBoundMixin]
     ):
-        # TODO: The type hint for 'message' feels incorrect as it appears to represent either an instance of a
-        #  BaseMessage or a ClientBoundMixin, but not a combination of both
+        # TODO: The type hint for 'message' feels incorrect as it appears to
+        #  represent either an instance of a BaseMessage or a ClientBoundMixin,
+        #  but not a combination of both
         if not hasattr(message, "client"):
             raise ValueError(
-                f"App '{self.id}' attempted to send message to client without specifying client ID"
+                f"App '{self.id}' attempted to send message to client without "
+                "specifying client ID"
             )
 
         return await self.manager.clients[self.id][message.client].send_message(message)
@@ -145,7 +150,8 @@ class _ClientConnection:
     socket: WebSocket
     app_id: str
     id: str
-    # TODO: I don't love how we're passing in an instance of the containing class here, is this clean?
+    # TODO: I don't love how we're passing in an instance of the containing class
+    #  here, is this clean?
     manager: _ConnectionManager
     # Until this is true, all messages other than connection requests will be blocked
     accepted: bool = False
@@ -210,7 +216,8 @@ class _ClientConnection:
         if not self.accepted and not isinstance(message, protocol.ConnectMessage):
             # Return statement here will abort connection
             raise protocol.AccessError(
-                f"Unauthorized client {self.id} attempted to send an authenticated message"
+                f"Unauthorized client {self.id} attempted to send an authenticated "
+                "message"
             )
 
     def _pre_send(self, message: protocol.BaseMessage) -> bool:
@@ -221,8 +228,9 @@ class _ClientConnection:
         if self.accepted:
             return True
 
-        # Defensively prevent apps from sending messages to clients they haven't accepted--this should be handled in app
-        # messaging libraries, but this helps us cover our bases
+        # Defensively prevent apps from sending messages to clients they haven't
+        # accepted--this should be handled in app messaging libraries, but this helps
+        # us cover our bases
         return False
 
     @staticmethod
@@ -236,9 +244,10 @@ class _ClientConnection:
 class _ConnectionManager:
     def __init__(self):
         self.apps: Dict[str, _AppConnection] = {}
-        # Important to note here that clients can be added for a specific app regardless of whether that app exists in
-        #  self.apps. This is so that self.apps can represent only active connections to apps. Handling clients with no
-        #  associated client is a different concern.
+        # Important to note here that clients can be added for a specific app
+        # regardless of whether that app exists in self.apps. This is so that
+        # self.apps can represent only active connections to apps. Handling clients
+        # with no associated client is a different concern.
         self.clients: Dict[str, Dict[str, _ClientConnection]] = {}
 
     async def add_app(self, connection: _AppConnection):
@@ -268,7 +277,8 @@ class _ConnectionManager:
         self.clients[connection.app_id][connection.id] = connection
 
     async def remove_client(self, connection: _ClientConnection):
-        # TODO: Consider whether there is a place in the protocol for a close message with a custom reason string
+        # TODO: Consider whether there is a place in the protocol for a close message
+        #  with a custom reason string
         await connection.close()
 
         if (
@@ -321,8 +331,9 @@ async def on_startup():
     )
 
 
-# Until https://github.com/tiangolo/fastapi/pull/2640 is merged in, the prefix specified in our APIRouter won't apply to
-#  websocket routes, so we have to manually set them
+# Until https://github.com/tiangolo/fastapi/pull/2640 is merged in, the prefix
+# specified in our APIRouter won't apply to websocket routes, so we have to manually
+# set them
 @router.websocket("/messaging/in/{app_id}")
 async def messaging_in(websocket: WebSocket, app_id: str):
     connection = _ClientConnection(websocket, app_id, str(uuid.uuid4()), _manager)

@@ -7,10 +7,11 @@ from pydantic import BaseModel
 
 from ..data import controller_api, auth_manager
 
-# @vinhowe: we could just not set a username, but I figure it gives us an extra layer of security against dumb
-# scripts that try default credentials for a lot of services. Because the code is sufficiently random and we might be
-# behind a firewall anyway, this is a super hypothetical concern. We should feel comfortable removing the username
-# check if it becomes inconvenient for us.
+# @vinhowe: we could just not set a username, but I figure it gives us an extra layer
+# of security against dumb scripts that try default credentials for a lot of
+# services. Because the code is sufficiently random and we might be behind a firewall
+# anyway, this is a super hypothetical concern. We should feel comfortable removing
+# the username check if it becomes inconvenient for us.
 _USERNAME = "cstv"
 
 router = APIRouter(
@@ -24,7 +25,8 @@ _api_key_header = APIKeyHeader(name=_API_KEY_NAME, auto_error=False)
 _api_key_cookie = APIKeyCookie(name=_API_KEY_NAME, auto_error=False)
 
 
-# TODO: Consider moving these models somewhere (possibly to use Pydantic for models more broadly)
+# TODO: Consider moving these models somewhere (possibly to use Pydantic for models
+#  more broadly)
 class CurrentExperienceChange(BaseModel):
     id: str
 
@@ -33,7 +35,8 @@ class CurrentExperienceUpdate(BaseModel):
     end_time: Optional[int] = None
     lock: Optional[Union[bool, int]] = None
     # TODO: Add a validator that at least one of these values is not none:
-    #  https://github.com/samuelcolvin/pydantic/issues/506#issuecomment-522255484 might be helpful
+    #  https://github.com/samuelcolvin/pydantic/issues/506#issuecomment-522255484
+    #  might be helpful
 
 
 async def validate_auth_code(
@@ -41,7 +44,8 @@ async def validate_auth_code(
     cookie_key: str = Depends(_api_key_cookie),
 ):
     """
-    Based on the example at https://fastapi.tiangolo.com/advanced/security/http-basic-auth/#check-the-username
+    Based on the example at
+    https://fastapi.tiangolo.com/advanced/security/http-basic-auth/#check-the-username
 
     :param cookie_key:
     :param header_key:
