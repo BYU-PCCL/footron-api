@@ -84,9 +84,7 @@ class _AppConnection:
 
         logger.info(f"Sending heartbeat to app: {self.id}")
         return await _checked_send(
-            protocol.serialize(
-                protocol.ClientHeartbeatMessage.create(up=up, clients=clients)
-            ),
+            protocol.serialize(protocol.HeartbeatClientMessage(up=up, clients=clients)),
             self.socket,
         )
 
@@ -110,7 +108,7 @@ class _AppConnection:
         if isinstance(message, protocol.DisplaySettingsMessage):
             return await controller_api.patch_current_experience(message.settings)
 
-        raise protocol.UnhandledMessageType(
+        raise protocol.UnhandledMessageTypeError(
             f"Unhandled message type '{message.type}' from app '{self.id}'"
         )
 
@@ -131,11 +129,11 @@ class _AppConnection:
         return await _checked_send(message, self.socket)
 
     async def _send_to_client(
-        self, message: Union[protocol.BaseMessage, protocol.ClientBoundMixin]
+        self, message: Union[protocol.BaseMessage, protocol.AppClientIdentifiableMixin]
     ):
         # TODO: The type hint for 'message' feels incorrect as it appears to
-        #  represent either an instance of a BaseMessage or a ClientBoundMixin,
-        #  but not a combination of both
+        #  represent either an instance of a BaseMessage or a
+        #  AppClientIdentifiableMixin, but not a combination of both
         if not hasattr(message, "client"):
             raise ValueError(
                 f"App '{self.id}' attempted to send message to client without specifying client ID"
@@ -162,7 +160,8 @@ class _ClientConnection:
 
     async def send_heartbeat(self, up: bool):
         await _checked_send(
-            protocol.serialize(protocol.HeartbeatMessage.create(up=up)), self.socket
+            protocol.serialize(protocol.HeartbeatAppMessage(app=self.app_id, up=up)),
+            self.socket,
         )
 
     async def connect(self):
