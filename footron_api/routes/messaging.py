@@ -138,8 +138,7 @@ class _AppConnection:
         #  but not a combination of both
         if not hasattr(message, "client"):
             raise ValueError(
-                f"App '{self.id}' attempted to send message to client without "
-                "specifying client ID"
+                f"App '{self.id}' attempted to send message to client without specifying client ID"
             )
 
         return await self.manager.clients[self.id][message.client].send_message(message)
@@ -216,8 +215,7 @@ class _ClientConnection:
         if not self.accepted and not isinstance(message, protocol.ConnectMessage):
             # Return statement here will abort connection
             raise protocol.AccessError(
-                f"Unauthorized client {self.id} attempted to send an authenticated "
-                "message"
+                f"Unauthorized client {self.id} attempted to send an authenticated message"
             )
 
     def _pre_send(self, message: protocol.BaseMessage) -> bool:
