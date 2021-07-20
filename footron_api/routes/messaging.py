@@ -11,7 +11,7 @@ from fastapi import APIRouter, WebSocket
 from fastapi.concurrency import run_until_first_complete
 from starlette.websockets import WebSocketState
 
-from .. import protocol
+import footron_protocol as protocol
 from ..constants import JsonDict
 from ..data import controller_api
 from ..util import asyncio_interval
