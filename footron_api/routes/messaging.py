@@ -109,8 +109,9 @@ class _AppConnection:
         return await self.send_heartbeat(client_id, False)
 
     async def add_client(self, client: _ClientConnection):
-        # TODO: Should we throw an exception here if a client already exists in the mapping with that ID? Or is just
-        #  overwriting it (like we do now) a reasonable default?
+        # TODO: Should we throw an exception here if a client already exists in the
+        #  mapping with that ID? Or is just overwriting it (like we do now) a
+        #  reasonable default?
 
         self.clients[client.id] = client
 
@@ -137,8 +138,9 @@ class _AppConnection:
             if not self.has_client(message.client) or not self.manager.client_connected(
                 message.client
             ):
-                # This should always be an developer error, but if it isn't (e.g. we're sending positive heartbeats that
-                # include disconnected clients), we need to fix our code
+                # This should always be an developer error, but if it isn't (e.g.
+                # we're sending positive heartbeats that include disconnected
+                # clients), we need to fix our code
                 logger.warning(
                     f"App {self.id} attempted to send a message to non-existent client with id {message.client}"
                 )
@@ -267,7 +269,8 @@ class _ClientConnection:
         if isinstance(
             message, (protocol.HeartbeatMessage, protocol.ClientHeartbeatMessage)
         ):
-            # Heartbeat messages should be created by router only based on status of websocket connections
+            # Heartbeat messages should be created by router only based on status of
+            # websocket connections
             raise protocol.ProtocolError(
                 "Clients are not allowed to send heartbeat messages"
             )
@@ -330,12 +333,13 @@ class _ClientConnection:
         return True
 
     def _pre_send(self, message: protocol.BaseMessage) -> bool:
-        """This function is only intended to prevent misguided apps from sending application messages to unauthenticated
-        clients, and its result should never be used to close a client connection--that responsibility falls to
-        _post_send()"""
+        """This function is only intended to prevent misguided apps from sending
+        application messages to unauthenticated clients, and its result should never
+        be used to close a client connection--that responsibility falls to
+        _post_send() """
         if isinstance(message, protocol.AccessMessage):
-            # An access message must always be sent--by this point we've already prevented the app from sending its own
-            # access messages without a lock
+            # An access message must always be sent--by this point we've already
+            # prevented the app from sending its own access messages without a lock
             if message.accepted:
                 self.app_id = message.app
             return True
@@ -359,8 +363,8 @@ class _ClientConnection:
 class _ConnectionManager:
     def __init__(self, auth: AuthManager):
         self.apps: Dict[str, _AppConnection] = {}
-        # dict[connection id, connection]--multiple clients are only allowed when either a lock is specified or
-        # multiuser is true in app config
+        # dict[connection id, connection]--multiple clients are only allowed when
+        # either a lock is specified or multiuser is true in app config
         self.clients: Dict[str, _ClientConnection] = {}
         self.auth = auth
 
@@ -389,8 +393,9 @@ class _ConnectionManager:
         self.clients[connection.id] = connection
 
     async def disconnect_client(self, connection: _ClientConnection, deauth=True):
-        # @vinhowe: If deauth is false, well-behaved clients may try to reconnect with the same auth information. I'm
-        # not sure whether there's actually a scenario where we don't want to deauth a client on disconnect because
+        # @vinhowe: If deauth is false, well-behaved clients may try to reconnect
+        # with the same auth information. I'm not sure whether there's actually a
+        # scenario where we don't want to deauth a client on disconnect because
         # client sessions are now scoped
         if deauth:
             await connection.deauth()
@@ -404,8 +409,8 @@ class _ConnectionManager:
 
         # Let app know client has disconnected
         if connection.app_id and self.app_connected(connection.app_id):
-            # TODO: Determine if we should be using a higher level API here, e.g. something like .disconnect_client()
-            #  instead of .send_heartbeat()
+            # TODO: Determine if we should be using a higher level API here,
+            #  e.g. something like .disconnect_client() instead of .send_heartbeat()
             await self.apps[connection.app_id].remove_client(connection.id)
 
     def app_connected(self, app_id: str) -> bool:
@@ -439,8 +444,9 @@ class _ConnectionManager:
         )
 
 
-# TODO: Use FastAPI's dependency injection instead of declaring global variables to make this code testable and easier
-#  to pull out when we need a test server project that developers can use to build their own controls. See:
+# TODO: Use FastAPI's dependency injection instead of declaring global variables to
+#  make this code testable and easier to pull out when we need a test server project
+#  that developers can use to build their own controls. See:
 #  - https://fastapi.tiangolo.com/tutorial/dependencies/
 #  - https://fastapi.tiangolo.com/tutorial/dependencies/classes-as-dependencies/
 #  - https://fastapi.tiangolo.com/advanced/advanced-dependencies/
