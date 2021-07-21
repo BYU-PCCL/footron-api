@@ -245,6 +245,7 @@ class _ClientConnection:
         return await self.send_access_message(False, reason=reason)
 
     async def send_heartbeat(self, up: bool):
+        logger.info(f"Sending heartbeat to client: {self.id}")
         await self._send_or_disconnect(
             protocol.serialize(protocol.HeartbeatAppMessage(app=self.app_id, up=up)),
         )
