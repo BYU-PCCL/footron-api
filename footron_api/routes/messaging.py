@@ -12,6 +12,8 @@ from fastapi.concurrency import run_until_first_complete
 from starlette.websockets import WebSocketState
 
 import footron_protocol as protocol
+from websockets.exceptions import ConnectionClosedError
+
 from ..constants import JsonDict
 from ..data import controller_api, auth_manager, AuthManager
 from ..util import asyncio_interval
@@ -32,7 +34,7 @@ async def _checked_socket_send(message: JsonDict, socket: WebSocket) -> bool:
 
     try:
         await socket.send_json(message)
-    except RuntimeError as e:
+    except (RuntimeError, ConnectionClosedError) as e:
         logger.error(f"Error during socket send: {e}")
         return False
     return True
