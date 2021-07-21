@@ -283,7 +283,7 @@ class _ClientConnection:
             )
 
         if isinstance(
-            message, (protocol.HeartbeatMessage, protocol.ClientHeartbeatMessage)
+            message, (protocol.HeartbeatAppMessage, protocol.HeartbeatClientMessage)
         ):
             # Heartbeat messages should be created by router only based on status of
             # websocket connections
@@ -299,9 +299,9 @@ class _ClientConnection:
         if not isinstance(
             message,
             (
-                protocol.AccessMessage,
+                protocol.ConnectMessage,
                 protocol.LifecycleMessage,
-                protocol.ApplicationMessage,
+                protocol.ApplicationClientMessage,
             ),
         ):
             raise protocol.ProtocolError(
