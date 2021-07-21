@@ -64,6 +64,7 @@ class _AppConnection:
     ] = asyncio.Queue()
     clients: Dict[str, _ClientConnection] = dataclasses.field(default_factory=dict)
     closed = False
+    lock: protocol.Lock = False
 
     async def send_message_from_client(
         self, client_id: str, message: protocol.BaseMessage
@@ -166,6 +167,18 @@ class _AppConnection:
     ):
         message = None
         if isinstance(item, _AppBoundMessageInfo):
+
+            # TODO (ASAP): Finish defining lock logic--for example, we need to make sure
+            #  not to kick an existing client off when a new client scans a new lock
+            #  auth code--which sounds just a little tricky
+            if isinstance(item.message, protocol.ConnectMessage) and not self.lock:
+                await self.add_client(self.manager.clients[item.client])
+                await self._send_to_client(
+                    protocol.AccessMessage(
+                        app=self.id, client=item.client, accepted=True
+                    )
+                )
+
             message = protocol.serialize(item.message)
             # App needs to know source of client messages
             message["client"] = item.client
