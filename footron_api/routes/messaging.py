@@ -495,7 +495,7 @@ async def messaging_in(websocket: WebSocket, auth_code: str):
             (connection.send_handler, {}),
         )
     finally:
-        await _manager.disconnect_client(connection)
+        await _manager.disconnect_client(connection, deauth=False)
 
 
 @router.websocket("/messaging/out/{app_id}")
