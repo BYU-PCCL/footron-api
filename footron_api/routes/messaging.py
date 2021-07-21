@@ -486,7 +486,7 @@ async def on_startup():
 # set them
 @router.websocket("/messaging/in/{auth_code}")
 async def messaging_in(websocket: WebSocket, auth_code: str):
-    connection = _ClientConnection(websocket, auth_code, str(uuid.uuid4()), _manager)
+    connection = _ClientConnection(websocket, str(uuid.uuid4()), auth_code, _manager)
 
     await _manager.try_connect_client(connection)
     try:
