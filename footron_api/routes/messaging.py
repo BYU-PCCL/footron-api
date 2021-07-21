@@ -253,6 +253,7 @@ class _ClientConnection:
         return await self.socket.accept()
 
     async def close(self) -> bool:
+        # TODO: Does this propagate up to the app connection? should we add listeners?
         if self.closed:
             return False
         await self.socket.close()
