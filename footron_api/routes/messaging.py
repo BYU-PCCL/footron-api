@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 # TODO: Move this somewhere
-async def _checked_send(message: JsonDict, socket: WebSocket) -> bool:
+async def _checked_socket_send(message: JsonDict, socket: WebSocket) -> bool:
     if socket.application_state == WebSocketState.DISCONNECTED:
         return False
 
@@ -91,7 +91,7 @@ class _AppConnection:
 
         # TODO: This is probably too verbose, consider removing it
         logger.info(f"Sending heartbeat to app: {self.id}")
-        return await _checked_send(
+        return await _checked_socket_send(
             protocol.serialize(protocol.HeartbeatClientMessage(up=up, clients=clients)),
             self.socket,
         )
@@ -175,7 +175,7 @@ class _AppConnection:
         if message is None:
             raise TypeError("Message wasn't _AppBoundMessageInfo or BaseMessage")
 
-        return await _checked_send(message, self.socket)
+        return await _checked_socket_send(message, self.socket)
 
     async def _send_to_client(
         self, message: Union[protocol.BaseMessage, protocol.AppClientIdentifiableMixin]
@@ -208,6 +208,13 @@ class _ClientConnection:
     ] = asyncio.Queue()
     closed = False
 
+    async def _send_or_disconnect(self, message: JsonDict):
+        if self.closed:
+            return False
+
+        if not await _checked_socket_send(message, self.socket):
+            await self.close()
+
     async def send_message_from_app(self, app_id: str, message: protocol.BaseMessage):
         return await self.queue.put(_ClientBoundMessageInfo(app_id, message))
 
@@ -215,22 +222,20 @@ class _ClientConnection:
         self, accepted: bool, *, reason: str = None, app_id: str = None
     ):
         # This needs to be sent immediately
-        return await _checked_send(
+        await self._send_or_disconnect(
             protocol.serialize(
                 protocol.AccessMessage.create(
                     accepted=accepted, reason=reason, app=app_id
                 )
             ),
-            self.socket,
         )
 
     async def deauth(self, reason="Your authentication code is expired or invalid"):
         return await self.send_access_message(False, reason=reason)
 
     async def send_heartbeat(self, up: bool):
-        await _checked_send(
+        await self._send_or_disconnect(
             protocol.serialize(protocol.HeartbeatAppMessage(app=self.app_id, up=up)),
-            self.socket,
         )
 
     async def connect(self):
@@ -303,6 +308,10 @@ class _ClientConnection:
         self, item: Union[protocol.BaseMessage, _ClientBoundMessageInfo]
     ):
         """Return false to cancel connection, true to continue without sending"""
+
+        if self.closed:
+            return False
+
         message = None
         serialized_message = None
 
@@ -324,7 +333,7 @@ class _ClientConnection:
 
         # Client doesn't need to know its ID because it doesn't have to self-identify
         del serialized_message["client"]
-        await _checked_send(serialized_message, self.socket)
+        await self._send_or_disconnect(serialized_message)
 
         if not self._post_send(message):
             # Cancel connection
