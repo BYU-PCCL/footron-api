@@ -403,12 +403,12 @@ class _ConnectionManager:
         del self.apps[connection.id]
 
     async def try_connect_client(self, connection: _ClientConnection):
+        await connection.connect()
+
         if not self.auth.check(connection.auth_code):
             await connection.deauth()
             await connection.close()
             return
-
-        await connection.connect()
 
         self.clients[connection.id] = connection
 
