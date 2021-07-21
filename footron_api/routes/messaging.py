@@ -40,6 +40,18 @@ async def _checked_socket_send(message: JsonDict, socket: WebSocket) -> bool:
     return True
 
 
+async def _checked_socket_close(socket: WebSocket) -> bool:
+    if socket.application_state == WebSocketState.DISCONNECTED:
+        return False
+
+    try:
+        await socket.close()
+    except (RuntimeError, ConnectionClosedError) as e:
+        logger.error(f"Error during socket close: {e}")
+        return False
+    return True
+
+
 @dataclasses.dataclass
 class _AppBoundMessageInfo:
     client: str
@@ -79,7 +91,7 @@ class _AppConnection:
     async def close(self) -> bool:
         if self.closed:
             return False
-        await self.socket.close()
+        await _checked_socket_close(self.socket)
         self.closed = True
         return True
 
@@ -259,7 +271,7 @@ class _ClientConnection:
         # TODO: Does this propagate up to the app connection? should we add listeners?
         if self.closed:
             return False
-        await self.socket.close()
+        await _checked_socket_close(self.socket)
         self.closed = True
         return True
 
