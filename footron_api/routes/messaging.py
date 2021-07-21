@@ -237,9 +237,7 @@ class _ClientConnection:
         # This needs to be sent immediately
         await self._send_or_disconnect(
             protocol.serialize(
-                protocol.AccessMessage.create(
-                    accepted=accepted, reason=reason, app=app_id
-                )
+                protocol.AccessMessage(accepted=accepted, reason=reason, app=app_id)
             ),
         )
 
