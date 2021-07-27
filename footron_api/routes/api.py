@@ -80,7 +80,7 @@ async def validate_auth_code(
 
 @router.get("/", response_class=HTMLResponse)
 async def _root():
-    return """<p>Welcome to the CSTV API!</p>"""
+    return """<p>Welcome to the Footron API!</p>"""
 
 
 @router.get("/experiences", dependencies=[Depends(validate_auth_code)])
