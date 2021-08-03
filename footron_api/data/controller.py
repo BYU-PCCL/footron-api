@@ -1,6 +1,9 @@
+import logging
+
 import aiohttp
 
 from ..constants import JsonDict, CONTROLLER_URL
+from .colors import ExperienceColorsManager, DEFAULT_COLORS
 
 _ENDPOINT_EXPERIENCES = "/experiences"
 _ENDPOINT_COLLECTIONS = "/collections"
@@ -8,6 +11,8 @@ _ENDPOINT_CURRENT_EXPERIENCE = "/current"
 _ENDPOINT_PLACARD = "/placard"
 
 _EXPERIENCE_FIELD_LAST_UPDATE = "last_update"
+
+logger = logging.getLogger(__name__)
 
 
 class ControllerApi:
@@ -17,6 +22,7 @@ class ControllerApi:
         self._collections = None
         self._current_experience = None
         self._last_update = None
+        self._colors_manager = ExperienceColorsManager()
 
     @staticmethod
     def _url_with_endpoint(endpoint) -> str:
@@ -33,9 +39,36 @@ class ControllerApi:
         ) as response:
             return await response.json()
 
+    def _add_experience_view_fields(self, experience: JsonDict) -> JsonDict:
+        experience_id = experience["id"]
+
+        try:
+            colors = self._colors_manager.colors[experience_id]
+        except KeyError:
+            logging.warning(f"Couldn't find colors for experience '{experience_id}'")
+            colors = DEFAULT_COLORS
+
+        colors = {
+            "primary": colors.primary,
+            "secondaryLight": colors.secondary_light,
+            "secondaryDark": colors.secondary_dark,
+        }
+
+        thumbnails = {
+            "wide": f"/icons/wide/{experience_id}.jpg",
+            "thumb": f"/icons/thumbs/{experience_id}.jpg",
+        }
+
+        return {**experience, "colors": colors, "thumbnails": thumbnails}
+
     async def experiences(self, use_cache=True) -> JsonDict:
         if self._experiences is None or not use_cache:
-            self._experiences = await self._get_json_response(_ENDPOINT_EXPERIENCES)
+            self._experiences = {
+                id: self._add_experience_view_fields(experience)
+                for id, experience in (
+                    await self._get_json_response(_ENDPOINT_EXPERIENCES)
+                ).items()
+            }
 
         return self._experiences
 
@@ -51,8 +84,8 @@ class ControllerApi:
             or _EXPERIENCE_FIELD_LAST_UPDATE not in self._current_experience
             or not use_cache
         ):
-            self._current_experience = await self._get_json_response(
-                _ENDPOINT_CURRENT_EXPERIENCE
+            self._current_experience = self._add_experience_view_fields(
+                await self._get_json_response(_ENDPOINT_CURRENT_EXPERIENCE)
             )
 
             if (
