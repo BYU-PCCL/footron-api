@@ -17,13 +17,14 @@ from typing import Union, List, Dict, Any, Optional
 from color_utils import rgb, rgb_to_hex
 
 # We need to update these if we ever change the web app's directory structure
-_SOURCE_STATIC_PATH = Path("public")
 _SOURCE_BUILD_PATH = Path("build")
 _SOURCE_GENERATED_PATH = Path("src", "controls", "generated")
 _SOURCE_GENERATED_INDEX_PATH = _SOURCE_GENERATED_PATH / "index.ts"
 _SOURCE_STATIC_ICONS_PATH = Path("icons")
 _SOURCE_STATIC_ICONS_THUMBS_PATH = _SOURCE_STATIC_ICONS_PATH / "thumbs"
 _SOURCE_STATIC_ICONS_WIDE_PATH = _SOURCE_STATIC_ICONS_PATH / "wide"
+
+_BUILD_STATIC_PATH = Path("static")
 
 _EXPERIENCE_CONFIG_PATH = Path("config.json")
 _EXPERIENCE_WIDE_PATH = Path("wide.jpg")
@@ -132,10 +133,6 @@ class WebBuilder:
         self._output_path = Path(web_source_path).absolute()
 
     @property
-    def _output_static_path(self):
-        return self._output_path / _SOURCE_STATIC_PATH
-
-    @property
     def _output_controls_source_path(self):
         return self._output_path / _SOURCE_GENERATED_PATH
 
@@ -146,6 +143,10 @@ class WebBuilder:
     @property
     def _output_build_path(self):
         return self._output_path / _SOURCE_BUILD_PATH
+
+    @property
+    def _output_static_path(self):
+        return self._output_build_path / _BUILD_STATIC_PATH
 
     def _copy_source_to_output_dir(self):
         logger.info(f"Copying source to {self._output_path}...")
@@ -159,11 +160,6 @@ class WebBuilder:
 
     def _link_controls(self):
         logger.info("Linking controls and generating index.ts...")
-
-        thumbs_path = self._output_static_path / _SOURCE_STATIC_ICONS_THUMBS_PATH
-        wide_path = self._output_static_path / _SOURCE_STATIC_ICONS_WIDE_PATH
-        thumbs_path.mkdir(parents=True)
-        wide_path.mkdir(parents=True)
 
         module_imports = []
         map_entries = []
@@ -180,20 +176,6 @@ class WebBuilder:
                 module_imports.append(f'import Controls{i} from "./{experience.id}";')
                 map_entries.append(f'["{experience.id}", Controls{i}]')
 
-            if experience.controls_static_path.exists():
-                linked_static_path = self._output_static_path / experience.id
-                linked_static_path.symlink_to(experience.controls_static_path)
-
-            icon_filename = f"{experience.id}.jpg"
-
-            if experience.thumb_image_path.exists():
-                shutil.copyfile(
-                    experience.thumb_image_path, thumbs_path / icon_filename
-                )
-
-            if experience.wide_image_path.exists():
-                shutil.copyfile(experience.wide_image_path, wide_path / icon_filename)
-
         index_content = _CONTROLS_INDEX_TEMPLATE % (
             "\n".join(module_imports),
             ",\n".join(map_entries),
@@ -208,6 +190,32 @@ class WebBuilder:
             raise BuildError(
                 f"Yarn exited with error status {build_process.returncode}"
             )
+
+    def _add_static_assets(self):
+        logger.info("Adding static assets to build output..")
+        thumbs_path = self._output_static_path / _SOURCE_STATIC_ICONS_THUMBS_PATH
+        wide_path = self._output_static_path / _SOURCE_STATIC_ICONS_WIDE_PATH
+        experiences_static_path = self._output_static_path / "experiences"
+        thumbs_path.mkdir(parents=True)
+        wide_path.mkdir(parents=True)
+        experiences_static_path.mkdir(parents=True)
+
+        for experience in self.experiences:
+            if experience.controls_static_path.exists():
+                shutil.copytree(
+                    experience.controls_static_path,
+                    experiences_static_path / experience.id,
+                )
+
+            icon_filename = f"{experience.id}.jpg"
+
+            if experience.thumb_image_path.exists():
+                shutil.copyfile(
+                    experience.thumb_image_path, thumbs_path / icon_filename
+                )
+
+            if experience.wide_image_path.exists():
+                shutil.copyfile(experience.wide_image_path, wide_path / icon_filename)
 
     def _copy_build_to_finished_dir(self):
         logger.info(f"Copying successful build output to {self.finished_build_path}...")
@@ -228,6 +236,7 @@ class WebBuilder:
             self._copy_source_to_output_dir()
             self._link_controls()
             self._yarn_build()
+            self._add_static_assets()
             self._copy_build_to_finished_dir()
             build_duration = datetime.now() - start_time
             seconds = f"{build_duration.seconds}s" if build_duration.seconds else None
