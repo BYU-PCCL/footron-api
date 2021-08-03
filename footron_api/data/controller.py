@@ -40,7 +40,10 @@ class ControllerApi:
             return await response.json()
 
     def _add_experience_view_fields(self, experience: JsonDict) -> JsonDict:
-        experience_id = experience["id"]
+        try:
+            experience_id = experience["id"]
+        except KeyError:
+            return experience
 
         try:
             colors = self._colors_manager.colors[experience_id]
