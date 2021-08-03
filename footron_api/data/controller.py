@@ -55,8 +55,8 @@ class ControllerApi:
         }
 
         thumbnails = {
-            "wide": f"/icons/wide/{experience_id}.jpg",
-            "thumb": f"/icons/thumbs/{experience_id}.jpg",
+            "wide": f"/static/icons/wide/{experience_id}.jpg",
+            "thumb": f"/static/icons/thumbs/{experience_id}.jpg",
         }
 
         return {**experience, "colors": colors, "thumbnails": thumbnails}
