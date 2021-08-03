@@ -3,7 +3,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .constants import BASE_URL
+from .constants import BASE_URL, BASE_DATA_PATH
 from .routes import api, messaging
 
 app = FastAPI()
@@ -29,6 +29,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+async def on_startup():
+    BASE_DATA_PATH.mkdir(exist_ok=True)
 
 
 # See https://github.com/encode/starlette/issues/864#issuecomment-653076434
