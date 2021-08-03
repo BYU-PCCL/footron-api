@@ -81,6 +81,7 @@ class Experience:
             l / 255
             for l in list(colorgram.extract(str(self.wide_image_path), 1)[0].hsl)
         ]
+        base_color = (base_color[0], min(base_color[1], 0.74), 0.35)
         secondary_dark = rgb_to_hex(
             *rgb(
                 *(
