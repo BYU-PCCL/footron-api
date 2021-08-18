@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import asyncio
 
+import footron_protocol as protocol
 from fastapi import APIRouter, WebSocket
 from footron_router import MessagingRouter
 
-from ..data import auth_manager
+from ..data import auth_manager, lock_manager, controller_api
 
 router = APIRouter(
     prefix="/messaging",
@@ -21,8 +22,17 @@ router = APIRouter(
 _messaging_router = MessagingRouter(auth_manager)
 
 
+def on_display_settings(settings: protocol.DisplaySettings):
+    if settings.lock is not None:
+        lock_manager.lock = settings.lock
+
+    if settings.end_time is not None:
+        controller_api.patch_current_experience({"end_time": settings.end_time})
+
+
 @router.on_event("startup")
 async def on_startup():
+    _messaging_router.add_display_settings_listener(on_display_settings)
     asyncio.get_event_loop().create_task(_messaging_router.run_heartbeating())
 
 

@@ -3,7 +3,8 @@ import logging
 import string
 import secrets
 import urllib.parse
-from typing import List, Callable, Awaitable, Union
+import footron_protocol as protocol
+from typing import List, Callable, Awaitable, Union, Optional
 
 import aiohttp
 
@@ -37,7 +38,7 @@ _ListenerCallable = Callable[[str], Union[Awaitable[None], None]]
 
 class AuthManager:
     code: str
-    next_code: str
+    next_code: Optional[str]
     _listeners: List[_ListenerCallable]
 
     def __init__(self, controller: ControllerApi, base_domain: str):
@@ -65,6 +66,17 @@ class AuthManager:
     async def advance(self):
         self.code = self.next_code
         self.next_code = self._generate_code()
+        await self._notify_listeners()
+        await self._update_placard_url()
+
+    async def lock(self, lock: protocol.Lock):
+        if isinstance(lock, int):
+            self.next_code = self.code
+        elif lock is True:
+            self.next_code = None
+        else:
+            await self.advance()
+            return
         await self._notify_listeners()
         await self._update_placard_url()
 
