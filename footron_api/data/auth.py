@@ -97,7 +97,7 @@ class AuthManager:
 
     async def _update_placard_url(self):
         new_url = self._create_url()
-        logger.info(f"New url is {new_url}")
+        print(f"New url is {new_url}")
         await self._controller.patch_placard({"url": new_url})
 
     async def _update_placard_url_loop(self):
