@@ -100,6 +100,10 @@ async def current_experience():
 
 @router.put("/current", dependencies=[Depends(validate_auth_code)])
 async def set_current_experience(change: CurrentExperienceChange):
+    # TODO: I know this is hacky, but it's the most straightforward way to remove locks
+    #  that will handle non-messaging apps right now. Feel free to come up with
+    #  something better.
+    lock_manager.lock = False
     return await controller_api.set_current_experience(id=change.id)
 
 
