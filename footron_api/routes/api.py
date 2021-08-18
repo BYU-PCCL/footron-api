@@ -5,7 +5,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.security import APIKeyCookie, APIKeyHeader
 from pydantic import BaseModel
 
-from ..data import controller_api, auth_manager
+from ..data import controller_api, auth_manager, lock_manager
 
 # @vinhowe: we could just not set a username, but I figure it gives us an extra layer
 # of security against dumb scripts that try default credentials for a lot of
@@ -71,7 +71,7 @@ async def validate_auth_code(
             detail="Invalid auth code",
         )
 
-    if matches_next_code:
+    if matches_next_code and not lock_manager.lock:
         await auth_manager.advance()
 
     # TODO: Decide whether it actually makes sense to return this in any case
