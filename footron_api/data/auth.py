@@ -77,7 +77,6 @@ class AuthManager:
         else:
             self.code = self._generate_code()
             self.next_code = self._generate_code()
-            return
         await self._notify_listeners()
         await self._update_placard_url()
 
