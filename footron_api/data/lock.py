@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+import asyncio
 from typing import TYPE_CHECKING
 
 import footron_protocol as protocol
@@ -29,5 +31,5 @@ class LockManager:
         self._lock = lock
         # self._controller_api.patch_current_experience({"lock": lock})
         # This allows new clients to join an existing client without
-        self._auth_manager.lock(lock)
+        asyncio.get_event_loop().create_task(self._auth_manager.lock(lock))
         # TODO: Interact with auth manager to allow
