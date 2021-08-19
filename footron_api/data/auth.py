@@ -73,7 +73,7 @@ class AuthManager:
         if isinstance(lock, int):
             self.next_code = self.code
         elif lock is True:
-            self.next_code = "lock"
+            self.next_code = None
         else:
             self.code = self._generate_code()
             self.next_code = self._generate_code()
@@ -96,9 +96,11 @@ class AuthManager:
         await asyncio.gather(*[listener(self.code) for listener in self._listeners])
 
     async def _update_placard_url(self):
-        new_url = self._create_url()
-        print(f"New url is {new_url}")
-        await self._controller.patch_placard({"url": new_url})
+        new_url = None
+        if self.next_code:
+            new_url = self._create_url()
+            print(f"New url is {new_url}")
+        await self._controller.patch_placard({"url": new_url if new_url else None})
 
     async def _update_placard_url_loop(self):
         """Check if QR code is empty and populate it with URL if so"""
