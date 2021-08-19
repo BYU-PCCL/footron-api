@@ -75,8 +75,8 @@ class AuthManager:
         elif lock is True:
             self.next_code = None
         else:
-            await self.advance()
-            return
+            self.code = self._generate_code()
+            self.next_code = self._generate_code()
         await self._notify_listeners()
         await self._update_placard_url()
 
