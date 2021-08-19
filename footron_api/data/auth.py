@@ -75,6 +75,7 @@ class AuthManager:
         elif lock is True:
             self.next_code = None
         else:
+            self.code = self._generate_code()
             self.next_code = self._generate_code()
             return
         await self._notify_listeners()
