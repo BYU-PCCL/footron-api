@@ -73,7 +73,7 @@ class AuthManager:
         if isinstance(lock, int):
             self.next_code = self.code
         elif lock is True:
-            self.next_code = None
+            self.next_code = "lock"
         else:
             self.code = self._generate_code()
             self.next_code = self._generate_code()
