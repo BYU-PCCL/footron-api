@@ -29,7 +29,7 @@ class LockManager:
             return
 
         self._lock = lock
-        # self._controller_api.patch_current_experience({"lock": lock})
+        await self._controller.patch_current_experience({"lock": lock})
         # This allows new clients to join an existing client without
         asyncio.get_event_loop().create_task(self._auth_manager.lock(lock))
         # TODO: Interact with auth manager to allow
