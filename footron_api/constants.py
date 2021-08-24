@@ -23,7 +23,7 @@ BASE_URL = (
 # The base URL for the Controller API
 CONTROLLER_URL = (
     os.environ[_CONTROLLER_URL_ENV]
-    if _BASE_URL_ENV in os.environ
+    if _CONTROLLER_URL_ENV in os.environ
     else "http://localhost:8000"
 )
 
