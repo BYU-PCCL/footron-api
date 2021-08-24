@@ -7,7 +7,7 @@ import footron_protocol as protocol
 from fastapi import APIRouter, WebSocket
 from footron_router import MessagingRouter
 
-from ..data import auth_manager, lock_manager, controller_api
+from ..data import auth_manager, controller_api
 
 router = APIRouter(
     prefix="/messaging",
@@ -24,7 +24,7 @@ _messaging_router = MessagingRouter(auth_manager)
 
 def on_display_settings(settings: protocol.DisplaySettings):
     if settings.lock is not None:
-        lock_manager.lock = settings.lock
+        auth_manager.lock = settings.lock
 
     if settings.end_time is not None:
         controller_api.patch_current_experience({"end_time": settings.end_time})

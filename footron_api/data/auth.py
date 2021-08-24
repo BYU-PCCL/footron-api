@@ -40,6 +40,7 @@ class AuthManager:
     code: str
     next_code: Optional[str]
     _listeners: List[_ListenerCallable]
+    _lock: protocol.Lock
 
     def __init__(self, controller: ControllerApi, base_domain: str):
         self.code = self._generate_code()
@@ -63,13 +64,31 @@ class AuthManager:
         # for some background on the use of secrets.compare_digest() here
         return secrets.compare_digest(a, b)
 
+    @property
+    def lock(self):
+        return self._lock
+
+    @lock.setter
+    def lock(self, lock: protocol.Lock):
+        if lock == self._lock:
+            return
+
+        self._lock = lock
+        asyncio.get_event_loop().create_task(self._handle_lock_change(self._lock))
+
     async def advance(self):
+        if self._lock:
+            return
+
         self.code = self.next_code
         self.next_code = self._generate_code()
+
         await self._notify_listeners()
         await self._update_placard_url()
 
-    async def lock(self, lock: protocol.Lock):
+    async def _handle_lock_change(self, lock: protocol.Lock):
+        await self._controller.patch_current_experience({"lock": lock})
+        await self._notify_listeners()
         if isinstance(lock, int):
             self.next_code = self.code
         elif lock is True:

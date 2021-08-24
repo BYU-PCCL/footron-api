@@ -5,7 +5,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.security import APIKeyCookie, APIKeyHeader
 from pydantic import BaseModel
 
-from ..data import controller_api, auth_manager, lock_manager
+from ..data import controller_api, auth_manager
 
 # @vinhowe: we could just not set a username, but I figure it gives us an extra layer
 # of security against dumb scripts that try default credentials for a lot of
@@ -71,7 +71,7 @@ async def validate_auth_code(
             detail="Invalid auth code",
         )
 
-    if matches_next_code and not lock_manager.lock:
+    if matches_next_code:
         await auth_manager.advance()
 
     # TODO: Decide whether it actually makes sense to return this in any case
@@ -102,7 +102,7 @@ async def current_experience():
 async def set_current_experience(change: CurrentExperienceChange):
     experience = await controller_api.current_experience()
     if experience and change.id != experience["id"]:
-        lock_manager.lock = False
+        auth_manager.lock = False
     # TODO: I know this is hacky, but it's the most straightforward way to remove locks
     #  that will handle non-messaging apps right now. Feel free to come up with
     #  something better.

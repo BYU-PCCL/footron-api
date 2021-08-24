@@ -1,4 +1,3 @@
-from .lock import LockManager
 from ..constants import BASE_URL
 from .controller import ControllerApi
 from .auth import AuthManager
@@ -6,4 +5,3 @@ from .auth import AuthManager
 # TODO: Maybe figure out a better place to put these (is this bad practice?)
 controller_api = ControllerApi()
 auth_manager = AuthManager(controller_api, BASE_URL)
-lock_manager = LockManager(auth_manager, controller_api)
