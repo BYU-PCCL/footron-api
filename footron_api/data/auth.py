@@ -142,7 +142,7 @@ class AuthManager:
         new_url = None
         if self.next_code:
             new_url = self._create_url()
-            logger.info(f"New url is {new_url}")
+            logger.debug(f"New url is {new_url}")
         await self._controller.patch_placard({"url": new_url if new_url else "lock"})
 
     async def _update_placard_url_loop(self):
