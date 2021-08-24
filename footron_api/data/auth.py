@@ -9,6 +9,7 @@ from typing import List, Callable, Awaitable, Union, Optional
 import aiohttp
 
 from .controller import ControllerApi
+from ..constants import AUTH_TIMEOUT_S
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,7 @@ class AuthManager:
     next_code: Optional[str]
     _listeners: List[_ListenerCallable]
     _lock: protocol.Lock
+    _auto_advance_task: Optional[asyncio.Task]
 
     def __init__(self, controller: ControllerApi, base_domain: str):
         self.code = self._generate_code()
@@ -77,14 +79,27 @@ class AuthManager:
         asyncio.get_event_loop().create_task(self._handle_lock_change(self._lock))
 
     async def advance(self):
+        # We do this before checking if there's a lock because we want the lock
+        # releasing to trigger the next call to advance()
+        if self._auto_advance_task and not self._auto_advance_task.cancelled():
+            self._auto_advance_task.cancel()
+
         if self._lock:
             return
 
         self.code = self.next_code
         self.next_code = self._generate_code()
 
+        self._auto_advance_task = asyncio.get_event_loop().create_task(
+            self._advance_after_timeout()
+        )
+
         await self._notify_listeners()
         await self._update_placard_url()
+
+    async def _advance_after_timeout(self):
+        await asyncio.sleep(AUTH_TIMEOUT_S)
+        await self.advance()
 
     async def _handle_lock_change(self, lock: protocol.Lock):
         await self._controller.patch_current_experience({"lock": lock})
