@@ -112,7 +112,6 @@ class AuthManager:
 
     async def _handle_lock_change(self, lock: protocol.Lock):
         await self._controller.patch_current_experience({"lock": lock})
-        await self._notify_listeners()
         if isinstance(lock, int):
             self._next_code = self.code
         elif lock is True:
