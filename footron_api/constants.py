@@ -12,6 +12,7 @@ _BASE_URL_ENV = "FT_BASE_URL"
 _CONTROLLER_URL_ENV = "FT_CONTROLLER_URL"
 _DATA_PATH_ENV = "FT_API_DATA_PATH"
 _LOG_LEVEL_ENV = "FT_LOG_LEVEL"
+_AUTH_TIMEOUT_ENV = "FT_AUTH_TIMEOUT"
 
 # The user-facing URL--where the static website is hosted
 BASE_URL = (
@@ -33,8 +34,6 @@ BASE_DATA_PATH = (
     else Path(xdg_data_home(), "footron-api")
 )
 
-# 15 minutes (should be, 30s for testing)
-AUTH_TIMEOUT_S = 30
 
 def _log_level(arg):
     level = getattr(logging, arg.upper(), None)
@@ -47,6 +46,11 @@ LOG_LEVEL = (
     _log_level(os.environ[_LOG_LEVEL_ENV])
     if _LOG_LEVEL_ENV in os.environ
     else logging.INFO
+)
+
+# defaults to 15 minutes
+AUTH_TIMEOUT_S = (
+    int(os.environ[_AUTH_TIMEOUT_ENV]) if _AUTH_TIMEOUT_ENV in os.environ else 15 * 60
 )
 
 # TODO: If we end up having a lot of global types, move them into types.py
