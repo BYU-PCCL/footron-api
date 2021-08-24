@@ -49,6 +49,7 @@ class AuthManager:
         self._next_code = self._generate_code()
         self._controller = controller
         self._base_domain = base_domain
+        self._lock = False
         self._listeners = []
         self._auto_advance_task = asyncio.get_event_loop().create_task(
             self._advance_after_timeout()
