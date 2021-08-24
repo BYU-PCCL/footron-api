@@ -34,14 +34,14 @@ _CODE_BYTES_COUNT = 6
 _ALPHANUMERIC_CHARS = string.ascii_letters + string.digits
 
 # (str) -> None
-_ListenerCallable = Callable[[str], Union[Awaitable[None], None]]
+AuthCallback = Callable[[str], Union[Awaitable[None], None]]
 
 
 class AuthManager:
     code: str
     next_code: Optional[str]
-    _listeners: List[_ListenerCallable]
     _lock: protocol.Lock
+    _listeners: List[AuthCallback]
     _auto_advance_task: Optional[asyncio.Task]
 
     def __init__(self, controller: ControllerApi, base_domain: str):
@@ -114,10 +114,10 @@ class AuthManager:
         await self._notify_listeners()
         await self._update_placard_url()
 
-    def add_listener(self, callback: _ListenerCallable):
+    def add_listener(self, callback: AuthCallback):
         self._listeners.append(callback)
 
-    def remove_listener(self, callback: _ListenerCallable):
+    def remove_listener(self, callback: AuthCallback):
         self._listeners.remove(callback)
 
     async def _notify_listeners(self):
