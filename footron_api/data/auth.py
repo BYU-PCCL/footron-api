@@ -50,6 +50,7 @@ class AuthManager:
         self._controller = controller
         self._base_domain = base_domain
         self._listeners = []
+        self._auto_advance_task = None
         asyncio.get_event_loop().create_task(self._update_placard_url())
         asyncio.get_event_loop().create_task(self._update_placard_url_loop())
 
