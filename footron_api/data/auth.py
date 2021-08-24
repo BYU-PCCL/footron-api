@@ -38,15 +38,15 @@ AuthCallback = Callable[[str], Union[Awaitable[None], None]]
 
 
 class AuthManager:
-    code: str
-    next_code: Optional[str]
+    _code: str
+    _next_code: Optional[str]
     _lock: protocol.Lock
     _listeners: List[AuthCallback]
     _auto_advance_task: Optional[asyncio.Task]
 
     def __init__(self, controller: ControllerApi, base_domain: str):
-        self.code = self._generate_code()
-        self.next_code = self._generate_code()
+        self._code = self._generate_code()
+        self._next_code = self._generate_code()
         self._controller = controller
         self._base_domain = base_domain
         self._listeners = []
@@ -65,6 +65,14 @@ class AuthManager:
         # https://fastapi.tiangolo.com/advanced/security/http-basic-auth/#timing-attacks
         # for some background on the use of secrets.compare_digest() here
         return secrets.compare_digest(a, b)
+
+    @property
+    def code(self):
+        return self._code
+
+    @property
+    def next_code(self):
+        return self._next_code
 
     @property
     def lock(self):
@@ -87,8 +95,8 @@ class AuthManager:
         if self._lock:
             return
 
-        self.code = self.next_code
-        self.next_code = self._generate_code()
+        self._code = self.next_code
+        self._next_code = self._generate_code()
 
         self._auto_advance_task = asyncio.get_event_loop().create_task(
             self._advance_after_timeout()
@@ -105,12 +113,12 @@ class AuthManager:
         await self._controller.patch_current_experience({"lock": lock})
         await self._notify_listeners()
         if isinstance(lock, int):
-            self.next_code = self.code
+            self._next_code = self.code
         elif lock is True:
-            self.next_code = None
+            self._next_code = None
         else:
-            self.code = self._generate_code()
-            self.next_code = self._generate_code()
+            self._code = self._generate_code()
+            self._next_code = self._generate_code()
         await self._notify_listeners()
         await self._update_placard_url()
 
