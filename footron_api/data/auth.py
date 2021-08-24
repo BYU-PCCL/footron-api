@@ -108,6 +108,7 @@ class AuthManager:
 
     async def _advance_after_timeout(self):
         await asyncio.sleep(AUTH_TIMEOUT_S)
+        logger.debug("Auth timeout expired, auto-cycling")
         await self.advance()
 
     async def _handle_lock_change(self, lock: protocol.Lock):
