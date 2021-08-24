@@ -58,10 +58,10 @@ class AuthManager:
         asyncio.get_event_loop().create_task(self._update_placard_url_loop())
 
     def check(self, code: str):
-        return self._check(code, self.code)
+        return self._check(code, self._code)
 
     def check_next(self, code: str):
-        return self._check(code, self.next_code)
+        return self._check(code, self._next_code)
 
     @staticmethod
     def _check(a: str, b: str):
