@@ -65,6 +65,8 @@ class AuthManager:
 
     @staticmethod
     def _check(a: str, b: str):
+        if (a is None) != (b is None):
+            return False
         # See
         # https://fastapi.tiangolo.com/advanced/security/http-basic-auth/#timing-attacks
         # for some background on the use of secrets.compare_digest() here
