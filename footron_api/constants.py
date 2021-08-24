@@ -10,6 +10,7 @@ from xdg import xdg_data_home
 
 _BASE_URL_ENV = "FT_BASE_URL"
 _CONTROLLER_URL_ENV = "FT_CONTROLLER_URL"
+_DATA_PATH_ENV = "FT_API_DATA_PATH"
 _LOG_LEVEL_ENV = "FT_LOG_LEVEL"
 
 # The user-facing URL--where the static website is hosted
@@ -27,8 +28,8 @@ CONTROLLER_URL = (
 )
 
 BASE_DATA_PATH = (
-    Path(os.environ["FT_API_DATA_PATH"])
-    if "FT_API_DATA_PATH" in os.environ
+    Path(os.environ[_DATA_PATH_ENV])
+    if _DATA_PATH_ENV in os.environ
     else Path(xdg_data_home(), "footron-api")
 )
 
