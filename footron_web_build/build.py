@@ -18,6 +18,7 @@ from color_utils import rgb, rgb_to_hex
 
 # We need to update these if we ever change the web app's directory structure
 _SOURCE_BUILD_PATH = Path("build")
+_SOURCE_PUBLIC_PATH = Path("public")
 _SOURCE_GENERATED_PATH = Path("src", "controls", "generated")
 _SOURCE_GENERATED_INDEX_PATH = _SOURCE_GENERATED_PATH / "index.ts"
 _SOURCE_STATIC_ICONS_PATH = Path("icons")
@@ -116,22 +117,50 @@ class BuildResult:
     experiences: List[Experience]
 
 
+class BuildPath:
+    _temp_dir: Optional[tempfile.TemporaryDirectory]
+    _output_dir: Path
+    _debug: bool
+
+    def __init__(self, output_dir: Path, debug=False):
+        self._temp_dir = None
+        self._output_dir = output_dir
+        self._debug = debug
+
+    def __enter__(self):
+        if self._debug:
+            return self._output_dir
+
+        self._temp_dir = tempfile.TemporaryDirectory()
+        return self._temp_dir.__enter__()
+
+    def __exit__(self, *args, **kwargs):
+        if self._debug:
+            return
+
+        return self._temp_dir.__exit__(*args, **kwargs)
+
+
 class WebBuilder:
     web_source_path: Path
+    finished_build_path: Path
     experiences: List[Experience]
 
     _output_path: Path
+    _debug: bool
 
     def __init__(
         self,
         web_source_path: Union[str, PathLike],
         finished_build_path: Union[str, PathLike],
         experience_paths: List[Union[str, PathLike]],
+        debug=False,
     ):
         self.web_source_path = Path(web_source_path).absolute()
         self.finished_build_path = Path(finished_build_path).absolute()
         self.experiences = [*map(Experience, experience_paths)]
         self._output_path = Path(web_source_path).absolute()
+        self._debug = debug
 
     @property
     def _output_controls_source_path(self):
@@ -147,7 +176,11 @@ class WebBuilder:
 
     @property
     def _output_static_path(self):
-        return self._output_build_path / _BUILD_STATIC_PATH
+        if self._debug:
+            base_path = self._output_path / _SOURCE_PUBLIC_PATH
+        else:
+            base_path = self._output_build_path
+        return base_path / _BUILD_STATIC_PATH
 
     def _copy_source_to_output_dir(self):
         logger.info(f"Copying source to {self._output_path}...")
@@ -193,7 +226,8 @@ class WebBuilder:
             )
 
     def _add_static_assets(self):
-        logger.info("Adding static assets to build output..")
+        build_type_name = "build" if not self._debug else "debug copy"
+        logger.info(f"Adding static assets to {build_type_name} output..")
         thumbs_path = self._output_static_path / _SOURCE_STATIC_ICONS_THUMBS_PATH
         wide_path = self._output_static_path / _SOURCE_STATIC_ICONS_WIDE_PATH
         experiences_static_path = self._output_static_path / "experiences"
@@ -223,7 +257,7 @@ class WebBuilder:
         shutil.copytree(self._output_build_path, self.finished_build_path)
 
     def build(self):
-        with tempfile.TemporaryDirectory() as self._output_path:
+        with BuildPath(self.finished_build_path, self._debug) as self._output_path:
             start_time = datetime.now()
             # Check if finished build path already exists so we don't get through a
             # whole build and find it later:
@@ -236,9 +270,11 @@ class WebBuilder:
             # self._output_path.mkdir(parents=True, exist_ok=True)
             self._copy_source_to_output_dir()
             self._link_controls()
-            self._yarn_build()
+            if not self._debug:
+                self._yarn_build()
             self._add_static_assets()
-            self._copy_build_to_finished_dir()
+            if not self._debug:
+                self._copy_build_to_finished_dir()
             build_duration = datetime.now() - start_time
             seconds = f"{build_duration.seconds}s" if build_duration.seconds else None
             millis = (
@@ -247,7 +283,8 @@ class WebBuilder:
                 else None
             )
             time_units = " ".join(filter(bool, [seconds, millis]))
-            logger.info(f"Build finished successfully in {time_units}")
+            build_type_name = "Build" if not self._debug else "Debug copy"
+            logger.info(f"{build_type_name} finished successfully in {time_units}")
             return BuildResult(self.finished_build_path, self.experiences)
 
 
@@ -257,10 +294,12 @@ if __name__ == "__main__":
     parser.add_argument("output_path", type=Path)
     parser.add_argument("experience_paths", nargs="+", type=Path)
     parser.add_argument("--color-output-path", type=Path)
+    parser.add_argument("--debug", action="store_true")
 
     args = parser.parse_args()
-    # print(args.experience_paths)
-    builder = WebBuilder(args.web_source_path, args.output_path, args.experience_paths)
+    builder = WebBuilder(
+        args.web_source_path, args.output_path, args.experience_paths, args.debug
+    )
     output = builder.build()
 
     color_output_path = args.color_output_path
