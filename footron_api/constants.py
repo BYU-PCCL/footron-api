@@ -5,6 +5,9 @@ from typing import Dict, Any, Union
 
 from xdg import xdg_data_home
 
+# TODO: Is there actually a good reason to use env variables here instead of CLI
+#  arguments?
+
 _BASE_URL_ENV = "FT_BASE_URL"
 _CONTROLLER_URL_ENV = "FT_CONTROLLER_URL"
 _LOG_LEVEL_ENV = "FT_LOG_LEVEL"
