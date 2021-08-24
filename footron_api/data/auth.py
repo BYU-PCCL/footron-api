@@ -113,7 +113,9 @@ class AuthManager:
 
     async def _handle_lock_change(self, lock: protocol.Lock):
         await self._controller.patch_current_experience({"lock": lock})
-        if isinstance(lock, int):
+        # Apparently isinstance(x, int) is true if x is a bool, so we have to check for
+        # that
+        if isinstance(lock, int) and not isinstance(lock, bool):
             self._next_code = self.code
         elif lock is True:
             self._next_code = None
