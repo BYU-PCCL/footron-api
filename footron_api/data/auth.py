@@ -91,23 +91,20 @@ class AuthManager:
         asyncio.get_event_loop().create_task(self._handle_lock_change(self._lock))
 
     async def advance(self):
-        # We do this before checking if there's a lock because we want the lock
-        # releasing to trigger the next call to advance()
+        if not self._lock:
+            self._code = self.next_code
+            self._next_code = self._generate_code()
+
+            await self._notify_listeners()
+            await self._update_placard_url()
+
         if self._auto_advance_task and not self._auto_advance_task.cancelled():
             self._auto_advance_task.cancel()
 
-        if self._lock:
-            return
-
-        self._code = self.next_code
-        self._next_code = self._generate_code()
-
-        self._auto_advance_task = asyncio.get_event_loop().create_task(
-            self._advance_after_timeout()
-        )
-
-        await self._notify_listeners()
-        await self._update_placard_url()
+        if not self._lock:
+            self._auto_advance_task = asyncio.get_event_loop().create_task(
+                self._advance_after_timeout()
+            )
 
     async def _advance_after_timeout(self):
         await asyncio.sleep(AUTH_TIMEOUT_S)
