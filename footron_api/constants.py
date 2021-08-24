@@ -27,8 +27,8 @@ BASE_DATA_PATH = (
     else Path(xdg_data_home(), "footron-api")
 )
 
-# 15 minutes
-AUTH_TIMEOUT_S = 15 * 60
+# 15 minutes (should be, 30s for testing)
+AUTH_TIMEOUT_S = 30
 
 # TODO: If we end up having a lot of global types, move them into types.py
 JsonDict = Dict[str, Union[Any, Any]]
