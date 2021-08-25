@@ -100,12 +100,20 @@ async def current_experience():
 
 @router.put("/current", dependencies=[Depends(validate_auth_code)])
 async def set_current_experience(change: CurrentExperienceChange):
+    if auth_manager.lock is True:
+        raise HTTPException(
+            status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
+            detail="Setting current experience is forbidden during closed lock",
+        )
+
     experience = await controller_api.current_experience()
+    # This handles the specific case that an "open" lock of n is held
     if experience and change.id != experience["id"]:
+        # TODO: I know this is hacky, but it's the most straightforward way to remove
+        #  locks that will handle non-messaging apps right now. Feel free to come up
+        #  with something better.
         auth_manager.lock = False
-    # TODO: I know this is hacky, but it's the most straightforward way to remove locks
-    #  that will handle non-messaging apps right now. Feel free to come up with
-    #  something better.
+
     return await controller_api.set_current_experience(id=change.id)
 
 
