@@ -147,14 +147,14 @@ class AuthManager:
         if self.next_code:
             new_url = self._create_url()
             logger.debug(f"New url is {new_url}")
-        await self._controller.patch_placard({"url": new_url if new_url else "lock"})
+        await self._controller.patch_placard_url(new_url)
 
     async def _update_placard_url_loop(self):
         """Check if QR code is empty and populate it with URL if so"""
         while True:
             try:
-                placard_data = await self._controller.placard()
-                if placard_data["url"] is None:
+                placard_data = await self._controller.placard_url()
+                if "url" not in placard_data or placard_data["url"] is None:
                     await self._update_placard_url()
             except aiohttp.ClientError:
                 # TODO: Determine if it's worth showing errors here or if we can just

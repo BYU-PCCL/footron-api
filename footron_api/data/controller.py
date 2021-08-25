@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 import aiohttp
 
@@ -8,7 +9,8 @@ from .colors import ExperienceColorsManager, DEFAULT_COLORS
 _ENDPOINT_EXPERIENCES = "/experiences"
 _ENDPOINT_COLLECTIONS = "/collections"
 _ENDPOINT_CURRENT_EXPERIENCE = "/current"
-_ENDPOINT_PLACARD = "/placard"
+_ENDPOINT_PLACARD_EXPERIENCE = "/placard/experience"
+_ENDPOINT_PLACARD_URL = "/placard/url"
 
 _EXPERIENCE_FIELD_LAST_UPDATE = "last_update"
 
@@ -21,6 +23,7 @@ class ControllerApi:
         self._experiences = None
         self._collections = None
         self._current_experience = None
+        self._placard_experience = None
         self._last_update = None
         self._colors_manager = ExperienceColorsManager()
 
@@ -32,10 +35,23 @@ class ControllerApi:
         self._experiences = None
         self._collections = None
         self._current_experience = None
+        self._placard_experience = None
 
     async def _get_json_response(self, endpoint) -> JsonDict:
         async with self._aiohttp_session.get(
             self._url_with_endpoint(endpoint)
+        ) as response:
+            return await response.json()
+
+    async def _put_json(self, endpoint, data: JsonDict) -> JsonDict:
+        async with self._aiohttp_session.put(
+            self._url_with_endpoint(endpoint), json=data
+        ) as response:
+            return await response.json()
+
+    async def _patch_json(self, endpoint, data: JsonDict) -> JsonDict:
+        async with self._aiohttp_session.patch(
+            self._url_with_endpoint(endpoint), json=data
         ) as response:
             return await response.json()
 
@@ -104,23 +120,20 @@ class ControllerApi:
         return self._current_experience
 
     async def set_current_experience(self, id: str) -> JsonDict:
-        async with self._aiohttp_session.put(
-            self._url_with_endpoint(_ENDPOINT_CURRENT_EXPERIENCE), json={"id": id}
-        ) as response:
-            return await response.json()
+        return await self._put_json(_ENDPOINT_CURRENT_EXPERIENCE, {"id": id})
 
     async def patch_current_experience(self, updates: JsonDict) -> JsonDict:
-        async with self._aiohttp_session.patch(
-            self._url_with_endpoint(_ENDPOINT_CURRENT_EXPERIENCE), json=updates
-        ) as response:
-            return await response.json()
+        return await self._patch_json(_ENDPOINT_CURRENT_EXPERIENCE, updates)
 
-    async def placard(self) -> JsonDict:
+    async def placard_experience(self) -> JsonDict:
+        return await self._get_json_response(_ENDPOINT_PLACARD_EXPERIENCE)
+
+    async def patch_placard_experience(self, updates: JsonDict) -> JsonDict:
+        return await self._patch_json(_ENDPOINT_PLACARD_EXPERIENCE, updates)
+
+    async def placard_url(self) -> JsonDict:
         # No caching for placard, make @vinhowe explain himself
-        return await self._get_json_response(_ENDPOINT_PLACARD)
+        return await self._get_json_response(_ENDPOINT_PLACARD_URL)
 
-    async def patch_placard(self, updates: JsonDict) -> JsonDict:
-        async with self._aiohttp_session.patch(
-            self._url_with_endpoint(_ENDPOINT_PLACARD), json=updates
-        ) as response:
-            return await response.json()
+    async def patch_placard_url(self, url: Optional[str]) -> JsonDict:
+        return await self._patch_json(_ENDPOINT_PLACARD_URL, {"url": url})
