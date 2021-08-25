@@ -83,6 +83,22 @@ async def _root():
     return """<p>Welcome to the Footron API!</p>"""
 
 
+# TODO: REMOVE IN PRODUCTION
+@router.get("/qr", response_class=HTMLResponse)
+async def qr_code():
+    url = auth_manager.create_url()
+    return (
+        "<html>"
+        "<head><title>FT QR</title></head>"
+        "<body>"
+        "<div style='display: flex; width: 300px; flex-direction: column; gap: 20px; align-items: center;'>"
+        f"<img src='https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=20&data={url}'></img>"
+        f"<a href='{url}'>{url}</a>"
+        "</div>"
+        "</body></html>"
+    )
+
+
 @router.get("/experiences", dependencies=[Depends(validate_auth_code)])
 async def experiences():
     return await controller_api.experiences()

@@ -145,7 +145,7 @@ class AuthManager:
     async def _update_placard_url(self):
         new_url = None
         if self.next_code:
-            new_url = self._create_url()
+            new_url = self.create_url()
             logger.debug(f"New url is {new_url}")
         await self._controller.patch_placard_url(new_url)
 
@@ -163,7 +163,7 @@ class AuthManager:
 
             await asyncio.sleep(1)
 
-    def _create_url(self):
+    def create_url(self):
         return urllib.parse.urljoin(self._base_domain, f"/c/{self.next_code}")
 
     @staticmethod
