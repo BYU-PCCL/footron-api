@@ -87,6 +87,7 @@ class ControllerApi:
                 for id, experience in (
                     await self._get_json_response(_ENDPOINT_EXPERIENCES)
                 ).items()
+                if "unlisted" not in experience or not experience["unlisted"]
             }
 
         return self._experiences
