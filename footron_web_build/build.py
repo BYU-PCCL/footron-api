@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import argparse
 from datetime import datetime
+from functools import partial
 
 import colorgram
 from os import PathLike
@@ -72,10 +73,11 @@ class Experience:
     def thumb_image_path(self):
         return self.path / _EXPERIENCE_THUMB_PATH
 
-    def __init__(self, path: Union[str, PathLike]):
+    def __init__(self, path: Union[str, PathLike], generate_colors=True):
         self.path = Path(path).absolute()
         self._load_config()
-        self._calculate_colors()
+        if generate_colors:
+            self._calculate_colors()
 
     def _calculate_colors(self):
         base_color = [
@@ -154,11 +156,14 @@ class WebBuilder:
         web_source_path: Union[str, PathLike],
         finished_build_path: Union[str, PathLike],
         experience_paths: List[Union[str, PathLike]],
+        generate_colors=False,
         debug=False,
     ):
         self.web_source_path = Path(web_source_path).absolute()
         self.finished_build_path = Path(finished_build_path).absolute()
-        self.experiences = [*map(Experience, experience_paths)]
+        self.experiences = [
+            *map(partial(Experience, generate_colors=generate_colors), experience_paths)
+        ]
         self._output_path = Path(web_source_path).absolute()
         self._debug = debug
 
@@ -297,12 +302,15 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_true")
 
     args = parser.parse_args()
+    color_output_path = args.color_output_path
     builder = WebBuilder(
-        args.web_source_path, args.output_path, args.experience_paths, args.debug
+        args.web_source_path,
+        args.output_path,
+        args.experience_paths,
+        generate_colors=bool(color_output_path),
+        debug=args.debug,
     )
     output = builder.build()
-
-    color_output_path = args.color_output_path
 
     if color_output_path:
         with open(color_output_path, "w") as color_file:
@@ -314,10 +322,3 @@ if __name__ == "__main__":
                     "secondary_dark": experience.colors.secondary_dark,
                 }
             json.dump(color_data, color_file)
-    else:
-        print("Output colors:")
-        for experience in output.experiences:
-            print(f"- {experience.id}")
-            print(f"  - primary: {experience.colors.primary}")
-            print(f"  - secondary light: {experience.colors.secondary_light}")
-            print(f"  - secondary dark: {experience.colors.secondary_dark}")
