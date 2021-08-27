@@ -27,7 +27,9 @@ def on_display_settings(settings: protocol.DisplaySettings):
         auth_manager.lock = settings.lock
 
     if settings.end_time is not None:
-        controller_api.patch_current_experience({"end_time": settings.end_time})
+        asyncio.get_event_loop().create_task(
+            controller_api.patch_current_experience({"end_time": settings.end_time})
+        )
 
 
 @router.on_event("startup")
