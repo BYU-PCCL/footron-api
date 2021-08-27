@@ -93,7 +93,7 @@ class AuthManager:
 
         self._last_lock = self._lock
         self._lock = lock
-        asyncio.get_event_loop().create_task(self._handle_lock_change(self._lock))
+        asyncio.get_event_loop().create_task(self._handle_lock_change())
 
     async def advance(self):
         if not self._lock:
