@@ -40,6 +40,7 @@ AuthCallback = Callable[[str], Union[Awaitable[None], None]]
 class AuthManager:
     _code: str
     _next_code: Optional[str]
+    _last_lock: protocol.Lock
     _lock: protocol.Lock
     _listeners: List[AuthCallback]
     _auto_advance_task: Optional[asyncio.Task]
@@ -49,6 +50,7 @@ class AuthManager:
         self._next_code = self._generate_code()
         self._controller = controller
         self._base_domain = base_domain
+        self._last_lock = False
         self._lock = False
         self._listeners = []
         self._auto_advance_task = asyncio.get_event_loop().create_task(
@@ -89,6 +91,7 @@ class AuthManager:
         if lock == self._lock:
             return
 
+        self._last_lock = self._lock
         self._lock = lock
         asyncio.get_event_loop().create_task(self._handle_lock_change(self._lock))
 
@@ -113,7 +116,10 @@ class AuthManager:
         logger.debug("Auth timeout expired, auto-cycling")
         await self.advance()
 
-    async def _handle_lock_change(self, lock: protocol.Lock):
+    async def _handle_lock_change(self):
+        # Set these here so we (hopefully) don't have to deal with race conditions
+        lock = self._lock
+        last_lock = self._lock
         await self._controller.patch_current_experience({"lock": lock})
         # Apparently isinstance(x, int) is true if x is a bool, so we have to check for
         # that
@@ -122,8 +128,12 @@ class AuthManager:
         elif lock is True:
             self._next_code = None
         else:
-            self._code = self._generate_code()
             self._next_code = self._generate_code()
+            # If we had a closed lock, kick everyone off. Otherwise, we'll just do
+            # normal pruning. Note that if people refresh, they'll be able to stick
+            # around, which a problem that we should find an elegant way to address.
+            if type(last_lock) == bool:
+                self._code = self._generate_code()
         await self._notify_listeners()
         await self._update_placard_url()
 
