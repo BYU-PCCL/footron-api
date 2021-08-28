@@ -119,7 +119,7 @@ class AuthManager:
     async def _handle_lock_change(self):
         # Set these here so we (hopefully) don't have to deal with race conditions
         lock = self._lock
-        last_lock = self._lock
+        last_lock = self._last_lock
         await self._controller.patch_current_experience({"lock": lock})
         # Apparently isinstance(x, int) is true if x is a bool, so we have to check for
         # that
