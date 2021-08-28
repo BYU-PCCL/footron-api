@@ -64,7 +64,8 @@ class ControllerApi:
         try:
             colors = self._colors_manager.colors[experience_id]
         except KeyError:
-            logging.warning(f"Couldn't find colors for experience '{experience_id}'")
+            if not experience["unlisted"]:
+                logging.warning(f"Couldn't find colors for experience '{experience_id}'")
             colors = DEFAULT_COLORS
 
         colors = {
