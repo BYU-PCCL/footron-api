@@ -101,7 +101,7 @@ class Experience:
         self.colors = ComputedColors(base_color, secondary_light, secondary_dark)
 
     def _load_config(self):
-        with open(self.path / "config.json") as config_file:
+        with open(self.path / _EXPERIENCE_CONFIG_PATH) as config_file:
             self.config = json.load(config_file)
         self.id = self.config["id"]
 
