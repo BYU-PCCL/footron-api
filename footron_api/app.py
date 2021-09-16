@@ -42,5 +42,5 @@ class PolledEndpointsFilter(logging.Filter):
         return record.getMessage().find("GET /api/current") == -1
 
 
-# Filter out /endpoint
+# Filter out especially verbose endpoints
 logging.getLogger("uvicorn.access").addFilter(PolledEndpointsFilter())
