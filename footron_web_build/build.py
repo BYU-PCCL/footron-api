@@ -28,6 +28,8 @@ _SOURCE_STATIC_ICONS_WIDE_PATH = _SOURCE_STATIC_ICONS_PATH / "wide"
 
 _BUILD_STATIC_PATH = Path("static")
 
+# TODO: Change this to something more specific to Footron because we use it to
+#  identify which paths contain experiences
 _EXPERIENCE_CONFIG_PATH = Path("config.json")
 _EXPERIENCE_WIDE_PATH = Path("wide.jpg")
 _EXPERIENCE_THUMB_PATH = Path("thumb.jpg")
