@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 
 import footron_protocol as protocol
 from fastapi import APIRouter, WebSocket
@@ -32,9 +33,18 @@ def on_display_settings(settings: protocol.DisplaySettings):
         )
 
 
+def on_interaction(at: datetime):
+    asyncio.get_event_loop().create_task(
+        controller_api.patch_current_experience(
+            {"last_interaction": int(at.timestamp() * 1000)}
+        )
+    )
+
+
 @router.on_event("startup")
 async def on_startup():
     _messaging_router.add_display_settings_listener(on_display_settings)
+    _messaging_router.add_interaction_listener(on_interaction)
     asyncio.get_event_loop().create_task(_messaging_router.run_heartbeating())
 
 
