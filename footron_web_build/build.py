@@ -78,7 +78,11 @@ class Experience:
     def __init__(self, path: Union[str, PathLike], generate_colors=True):
         self.path = Path(path).absolute()
         self._load_config()
-        if generate_colors:
+        if (
+            generate_colors
+            and self.wide_image_path.exists()
+            and self.thumb_image_path.exists()
+        ):
             self._calculate_colors()
 
     def _calculate_colors(self):
@@ -319,6 +323,9 @@ if __name__ == "__main__":
         with open(color_output_path, "w") as color_file:
             color_data = {}
             for experience in output.experiences:
+                if not hasattr(experience, "colors"):
+                    continue
+
                 color_data[experience.id] = {
                     "primary": experience.colors.primary,
                     "secondary_light": experience.colors.secondary_light,
