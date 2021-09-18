@@ -57,6 +57,7 @@ class Experience:
     path: Path
     config: Dict[str, Any]
     id: str
+    type: str
     colors: Optional[ComputedColors]
 
     @property
@@ -110,6 +111,7 @@ class Experience:
         with open(self.path / _EXPERIENCE_CONFIG_PATH) as config_file:
             self.config = json.load(config_file)
         self.id = self.config["id"]
+        self.type = self.config["type"]
 
 
 @dataclasses.dataclass
@@ -207,7 +209,7 @@ class WebBuilder:
     def _link_controls(self):
         logger.info("Linking controls and generating index.ts...")
 
-        module_imports = []
+        module_imports = ['import VideoScrubber from "../VideoScrubber";']
         map_entries = []
 
         # We have test generated output--so we can do dev builds--that we need to delete
@@ -221,6 +223,12 @@ class WebBuilder:
 
                 module_imports.append(f'import Controls{i} from "./{experience.id}";')
                 map_entries.append(f'["{experience.id}", Controls{i}]')
+            elif (
+                experience.type == "video"
+                and "scrubbing" in experience.config
+                and experience.config["scrubbing"] is True
+            ):
+                map_entries.append(f'["{experience.id}", VideoScrubber]')
 
         index_content = _CONTROLS_INDEX_TEMPLATE % (
             "\n".join(module_imports),
