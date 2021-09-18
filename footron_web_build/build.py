@@ -169,7 +169,9 @@ class WebBuilder:
     ):
         self.web_source_path = Path(web_source_path).absolute()
         self.finished_build_path = Path(finished_build_path).absolute()
-        experience_paths = list(filter(lambda p: (p / _EXPERIENCE_CONFIG_PATH).exists(), experience_paths))
+        experience_paths = list(
+            filter(lambda p: (p / _EXPERIENCE_CONFIG_PATH).exists(), experience_paths)
+        )
         self.experiences = [
             *map(partial(Experience, generate_colors=generate_colors), experience_paths)
         ]
