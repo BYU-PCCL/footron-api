@@ -83,7 +83,6 @@ async def _root():
     return """<p>Welcome to the Footron API!</p>"""
 
 
-# TODO: REMOVE IN PRODUCTION
 @router.get("/qr", response_class=HTMLResponse)
 async def qr_code():
     url = auth_manager.create_url()
