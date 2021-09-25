@@ -1,7 +1,7 @@
 from typing import Union, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Depends, HTTPException, status, Header
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.security import APIKeyCookie, APIKeyHeader
 from pydantic import BaseModel
 
@@ -83,19 +83,32 @@ async def _root():
     return """<p>Welcome to the Footron API!</p>"""
 
 
-@router.get("/qr", response_class=HTMLResponse)
-async def qr_code():
+@router.get("/qr")
+async def qr_code(accept: Optional[str] = Header(None)):
     url = auth_manager.create_url()
-    return (
-        "<html>"
-        "<head><title>FT QR</title></head>"
-        "<body>"
-        "<div style='display: flex; width: 300px; flex-direction: column; gap: 20px; align-items: center;'>"
-        f"<img src='https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=20&data={url}'></img>"
-        f"<a href='{url}'>{url}</a>"
-        "</div>"
-        "</body></html>"
-    )
+    if any(filter(lambda a: "text/html" in a, accept.split(","))):
+        return HTMLResponse(
+            "<html>"
+            f"<head><title>FT QR</title></head>"
+            "<script src='https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.js'></script>"
+            "<body>"
+            "<div style='display: flex; width: min-content; flex-direction: column; gap: 20px; align-items: center;'>"
+            "<canvas id='qr'></canvas>"
+            f"<a href='{url}'>{url}</a>"
+            "<script>"
+            "(function() {"
+            "var qr = new QRious({"
+            "element: document.getElementById('qr'),"
+            "size: 200,"
+            f"value: '{url}'"
+            "});"
+            "})();"
+            "</script>"
+            "</div>"
+            "</body></html>"
+        )
+
+    return JSONResponse({"url": url})
 
 
 @router.get("/experiences", dependencies=[Depends(validate_auth_code)])
