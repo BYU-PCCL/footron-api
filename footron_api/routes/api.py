@@ -121,6 +121,11 @@ async def collections():
     return await controller_api.collections()
 
 
+@router.get("/folders", dependencies=[Depends(validate_auth_code)])
+async def folders():
+    return await controller_api.folders()
+
+
 @router.get("/current", dependencies=[Depends(validate_auth_code)])
 async def current_experience():
     return await controller_api.current_experience(use_cache=False)

@@ -8,6 +8,7 @@ from .colors import ExperienceColorsManager, DEFAULT_COLORS
 
 _ENDPOINT_EXPERIENCES = "/experiences"
 _ENDPOINT_COLLECTIONS = "/collections"
+_ENDPOINT_FOLDERS = "/folders"
 _ENDPOINT_CURRENT_EXPERIENCE = "/current"
 _ENDPOINT_PLACARD_EXPERIENCE = "/placard/experience"
 _ENDPOINT_PLACARD_URL = "/placard/url"
@@ -22,6 +23,7 @@ class ControllerApi:
         self._aiohttp_session = aiohttp_session
         self._experiences = None
         self._collections = None
+        self._folders = None
         self._current_experience = None
         self._placard_experience = None
         self._last_update = None
@@ -55,17 +57,11 @@ class ControllerApi:
         ) as response:
             return await response.json()
 
-    def _add_experience_view_fields(self, experience: JsonDict) -> JsonDict:
-        try:
-            experience_id = experience["id"]
-        except KeyError:
-            return experience
-
+    def _experience_view_fields(self, experience_id: str) -> JsonDict:
         try:
             colors = self._colors_manager.colors[experience_id]
         except KeyError:
-            if not experience["unlisted"]:
-                logging.warning(f"Couldn't find colors for experience '{experience_id}'")
+            logging.warning(f"Couldn't find colors for experience '{experience_id}'")
             colors = DEFAULT_COLORS
 
         colors = {
@@ -79,12 +75,12 @@ class ControllerApi:
             "thumb": f"/static/icons/thumbs/{experience_id}.jpg",
         }
 
-        return {**experience, "colors": colors, "thumbnails": thumbnails}
+        return {"colors": colors, "thumbnails": thumbnails}
 
     async def experiences(self, use_cache=True) -> JsonDict:
         if self._experiences is None or not use_cache:
             self._experiences = {
-                id: self._add_experience_view_fields(experience)
+                id: {**experience, **self._experience_view_fields(id)}
                 for id, experience in (
                     await self._get_json_response(_ENDPOINT_EXPERIENCES)
                 ).items()
@@ -98,6 +94,17 @@ class ControllerApi:
             self._collections = await self._get_json_response(_ENDPOINT_COLLECTIONS)
 
         return self._collections
+
+    async def folders(self, use_cache=True) -> JsonDict:
+        if self._folders is None or not use_cache:
+            self._folders = {
+                id: {**folder, **self._experience_view_fields(folder["featured"])}
+                for id, folder in (
+                    await self._get_json_response(_ENDPOINT_FOLDERS)
+                ).items()
+            }
+
+        return self._folders
 
     async def current_experience(self, use_cache=True) -> JsonDict:
         if (
