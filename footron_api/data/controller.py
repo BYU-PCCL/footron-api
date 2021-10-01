@@ -112,9 +112,13 @@ class ControllerApi:
             or _EXPERIENCE_FIELD_LAST_UPDATE not in self._current_experience
             or not use_cache
         ):
-            self._current_experience = self._add_experience_view_fields(
-                await self._get_json_response(_ENDPOINT_CURRENT_EXPERIENCE)
-            )
+            new_experience = await self._get_json_response(_ENDPOINT_CURRENT_EXPERIENCE)
+            if not new_experience:
+                return {}
+            self._current_experience = {
+                **new_experience,
+                **self._experience_view_fields(new_experience["id"]),
+            }
 
             if (
                 _EXPERIENCE_FIELD_LAST_UPDATE in self._current_experience
