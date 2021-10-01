@@ -116,8 +116,6 @@ class ControllerApi:
             if not new_experience:
                 return {}
             self._current_experience = {**new_experience, **self._experience_view_fields(new_experience["id"])} 
-                
-           
 
             if (
                 _EXPERIENCE_FIELD_LAST_UPDATE in self._current_experience
