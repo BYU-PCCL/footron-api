@@ -115,7 +115,10 @@ class ControllerApi:
             new_experience = await self._get_json_response(_ENDPOINT_CURRENT_EXPERIENCE)
             if not new_experience:
                 return {}
-            self._current_experience = {**new_experience, **self._experience_view_fields(new_experience["id"])} 
+            self._current_experience = {
+                **new_experience,
+                **self._experience_view_fields(new_experience["id"]),
+            }
 
             if (
                 _EXPERIENCE_FIELD_LAST_UPDATE in self._current_experience
