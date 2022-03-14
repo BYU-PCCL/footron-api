@@ -153,3 +153,9 @@ async def set_current_experience(change: CurrentExperienceChange):
 @router.patch("/current", dependencies=[Depends(validate_auth_code)])
 async def update_current_experience(update: CurrentExperienceUpdate):
     return await controller_api.set_current_experience(**update.dict())
+
+
+@router.get("/reload")
+async def reload():
+    controller_api.reset()
+    return {"status": "ok"}

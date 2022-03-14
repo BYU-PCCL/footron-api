@@ -39,6 +39,10 @@ class ControllerApi:
         self._current_experience = None
         self._placard_experience = None
 
+    def reset(self):
+        self._invalidate_cache()
+        self._colors_manager.load()
+
     async def _get_json_response(self, endpoint) -> JsonDict:
         async with self._aiohttp_session.get(
             self._url_with_endpoint(endpoint)
