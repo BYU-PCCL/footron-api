@@ -132,7 +132,7 @@ class ControllerApi:
                 self._last_update = self._current_experience[
                     _EXPERIENCE_FIELD_LAST_UPDATE
                 ]
-                self._invalidate_cache()
+                self.reset()
 
         return self._current_experience
 
