@@ -65,7 +65,8 @@ class AuthManager:
         return self._check(code, self._next_code)
 
     @staticmethod
-    def _check(a: str, b: str):
+    def _check(a: Optional[str], b: Optional[str]):
+        # TODO(vinhowe): Justify this confusing logic. Write a comment explaining it.
         if (a is None) != (b is None):
             return False
         # See
