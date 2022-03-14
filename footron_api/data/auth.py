@@ -31,7 +31,6 @@ logger = logging.getLogger(__name__)
 # nicer looking--QR code.
 _CODE_BYTES_COUNT = 6
 
-_ALPHANUMERIC_CHARS = string.ascii_letters + string.digits
 
 # (str) -> None
 AuthCallback = Callable[[str], Union[Awaitable[None], None]]
