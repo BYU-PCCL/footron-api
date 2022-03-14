@@ -37,6 +37,11 @@ _EXPERIENCE_CONTROLS_PATH = Path("controls")
 _EXPERIENCE_CONTROLS_SOURCE_PATH = _EXPERIENCE_CONTROLS_PATH / "lib"
 _EXPERIENCE_CONTROLS_STATIC_PATH = _EXPERIENCE_CONTROLS_PATH / "static"
 
+_BUILD_TYPE_STATIC = "static"
+_BUILD_TYPE_WEB = "web"
+
+_DEFAULT_BUILD_STEPS = [_BUILD_TYPE_STATIC, _BUILD_TYPE_WEB]
+
 _CONTROLS_INDEX_TEMPLATE = (
     "%s\n"
     "const controls: Map<string, () => JSX.Element> = new Map([\n"
@@ -130,22 +135,22 @@ class BuildResult:
 class BuildPath:
     _temp_dir: Optional[tempfile.TemporaryDirectory]
     _output_dir: Path
-    _debug: bool
+    _in_place: bool
 
-    def __init__(self, output_dir: Path, debug=False):
+    def __init__(self, output_dir: Path, in_place=False):
         self._temp_dir = None
         self._output_dir = output_dir
-        self._debug = debug
+        self._in_place = in_place
 
     def __enter__(self):
-        if self._debug:
+        if self._in_place:
             return self._output_dir
 
         self._temp_dir = tempfile.TemporaryDirectory()
         return self._temp_dir.__enter__()
 
     def __exit__(self, *args, **kwargs):
-        if self._debug:
+        if self._in_place:
             return
 
         return self._temp_dir.__exit__(*args, **kwargs)
@@ -158,15 +163,20 @@ class WebBuilder:
 
     _output_path: Path
     _debug: bool
+    _steps: List[str]
 
     def __init__(
         self,
         web_source_path: Union[str, PathLike],
         finished_build_path: Union[str, PathLike],
         experience_paths: List[Union[str, PathLike]],
+        steps=None,
         generate_colors=False,
         debug=False,
     ):
+        if steps is None:
+            steps = _DEFAULT_BUILD_STEPS
+        self._steps = steps
         self.web_source_path = Path(web_source_path).absolute()
         self.finished_build_path = Path(finished_build_path).absolute()
         experience_paths = list(
@@ -279,24 +289,39 @@ class WebBuilder:
         shutil.copytree(self._output_build_path, self.finished_build_path)
 
     def build(self):
-        with BuildPath(self.finished_build_path, self._debug) as self._output_path:
+        build_static = _BUILD_TYPE_STATIC in self._steps
+        build_web = _BUILD_TYPE_WEB in self._steps
+
+        if not build_web and not build_static:
+            return
+
+        with BuildPath(
+            self.finished_build_path, self._debug or not build_web
+        ) as self._output_path:
             start_time = datetime.now()
             # Check if finished build path already exists so we don't get through a
             # whole build and find it later:
-            if self.finished_build_path.exists():
+            if self.finished_build_path.exists() and build_web:
                 raise FileExistsError(
-                    f"Output build path {self.finished_build_path} already exists"
+                    f"Output build path {self.finished_build_path} must not exist for a web build"
+                )
+            if not self.finished_build_path.exists() and build_static and not build_web:
+                raise FileExistsError(
+                    f"Output build path {self.finished_build_path} must exist for a static build"
                 )
             # Useful for debugging:
             # self._output_path = Path("/tmp/test-build")
             # self._output_path.mkdir(parents=True, exist_ok=True)
-            self._copy_source_to_output_dir()
-            self._link_controls()
-            if not self._debug:
-                self._yarn_build()
-            self._add_static_assets()
-            if not self._debug:
-                self._copy_build_to_finished_dir()
+            if build_web:
+                self._copy_source_to_output_dir()
+                self._link_controls()
+                if not self._debug:
+                    self._yarn_build()
+            if build_static:
+                self._add_static_assets()
+            if build_web:
+                if not self._debug:
+                    self._copy_build_to_finished_dir()
             build_duration = datetime.now() - start_time
             seconds = f"{build_duration.seconds}s" if build_duration.seconds else None
             millis = (
@@ -317,13 +342,26 @@ if __name__ == "__main__":
     parser.add_argument("experience_paths", nargs="+", type=Path)
     parser.add_argument("--color-output-path", type=Path)
     parser.add_argument("--debug", action="store_true")
+    parser.add_argument(
+        "--steps",
+        default=_DEFAULT_BUILD_STEPS,
+        choices=_DEFAULT_BUILD_STEPS,
+        action="append",
+        nargs="*",
+    )
+
 
     args = parser.parse_args()
+    build_steps = _DEFAULT_BUILD_STEPS
+    if len(args.steps) > 2:
+        build_steps = set(args.steps[-1])
+
     color_output_path = args.color_output_path
     builder = WebBuilder(
         args.web_source_path,
         args.output_path,
         args.experience_paths,
+        steps=build_steps,
         generate_colors=bool(color_output_path),
         debug=args.debug,
     )
