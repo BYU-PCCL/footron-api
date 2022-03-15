@@ -87,6 +87,7 @@ class Experience:
             self._calculate_colors()
 
     def _calculate_colors(self):
+        logger.info(f"Generating colors for {self.id}")
         base_color = [
             l / 255
             for l in list(colorgram.extract(str(self.wide_image_path), 1)[0].hsl)
