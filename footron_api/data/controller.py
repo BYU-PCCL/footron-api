@@ -36,6 +36,7 @@ class ControllerApi:
     def _invalidate_cache(self):
         self._experiences = None
         self._collections = None
+        self._folders = None
         self._current_experience = None
         self._placard_experience = None
 
