@@ -51,11 +51,11 @@ async def on_startup():
 # Until https://github.com/tiangolo/fastapi/pull/2640 is merged in, the prefix
 # specified in our APIRouter won't apply to websocket routes, so we have to manually
 # set them
-@router.websocket("/messaging/in/{auth_code}")
+@router.websocket("/in/{auth_code}")
 async def messaging_in(websocket: WebSocket, auth_code: str):
     await _messaging_router.client_connection(websocket, auth_code)
 
 
-@router.websocket("/messaging/out/{app_id}")
+@router.websocket("/out/{app_id}")
 async def messaging_out(websocket: WebSocket, app_id: str):
     await _messaging_router.app_connection(websocket, app_id)
