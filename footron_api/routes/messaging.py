@@ -10,6 +10,7 @@ from footron_router import MessagingRouter
 
 from ..data import auth_manager, controller_api
 
+
 router = APIRouter(
     prefix="/messaging",
     tags=["messaging"],
