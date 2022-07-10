@@ -15,7 +15,7 @@ from os import PathLike
 from pathlib import Path
 from typing import Union, List, Dict, Any, Optional
 
-from color_utils import rgb, rgb_to_hex
+from .color_utils import rgb, rgb_to_hex
 
 # We need to update these if we ever change the web app's directory structure
 _SOURCE_BUILD_PATH = Path("build")
