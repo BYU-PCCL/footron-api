@@ -4,7 +4,6 @@ from typing import Optional
 import aiohttp
 
 from ..constants import JsonDict, CONTROLLER_URL
-from .colors import ExperienceColorsManager, DEFAULT_COLORS
 
 _ENDPOINT_EXPERIENCES = "/experiences"
 _ENDPOINT_COLLECTIONS = "/collections"
@@ -27,7 +26,6 @@ class ControllerApi:
         self._current_experience = None
         self._placard_experience = None
         self._last_update = None
-        self._colors_manager = ExperienceColorsManager()
 
     @staticmethod
     def _url_with_endpoint(endpoint) -> str:
@@ -42,7 +40,6 @@ class ControllerApi:
 
     def reset(self):
         self._invalidate_cache()
-        self._colors_manager.load()
 
     async def _get_json_response(self, endpoint) -> JsonDict:
         async with self._aiohttp_session.get(
@@ -63,24 +60,12 @@ class ControllerApi:
             return await response.json()
 
     def _experience_view_fields(self, experience_id: str) -> JsonDict:
-        try:
-            colors = self._colors_manager.colors[experience_id]
-        except KeyError:
-            logging.warning(f"Couldn't find colors for experience '{experience_id}'")
-            colors = DEFAULT_COLORS
-
-        colors = {
-            "primary": colors.primary,
-            "secondaryLight": colors.secondary_light,
-            "secondaryDark": colors.secondary_dark,
-        }
-
         thumbnails = {
             "wide": f"/static/icons/wide/{experience_id}.jpg",
             "thumb": f"/static/icons/thumbs/{experience_id}.jpg",
         }
 
-        return {"colors": colors, "thumbnails": thumbnails}
+        return {"thumbnails": thumbnails}
 
     async def experiences(self, use_cache=True) -> JsonDict:
         if self._experiences is None or not use_cache:
@@ -101,9 +86,19 @@ class ControllerApi:
         return self._collections
 
     async def folders(self, use_cache=True) -> JsonDict:
+        experiences = await self.experiences(use_cache=use_cache)
+
         if self._folders is None or not use_cache:
             self._folders = {
-                id: {**folder, **self._experience_view_fields(folder["featured"])}
+                id: {
+                    **folder,
+                    **self._experience_view_fields(folder["featured"]),
+                    **{
+                        "colors": experiences.get(folder["featured"], {}).get(
+                            "colors", {}
+                        )
+                    },
+                }
                 for id, folder in (
                     await self._get_json_response(_ENDPOINT_FOLDERS)
                 ).items()
