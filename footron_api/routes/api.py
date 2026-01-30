@@ -111,6 +111,12 @@ async def qr_code(accept: Optional[str] = Header(None)):
     return JSONResponse({"url": url})
 
 
+@router.get("/direct-anim-video-1")
+async def direct_anim_video_1():
+    await controller_api.set_current_experience(id="owned")
+    return JSONResponse({"status": "ok"})
+
+
 @router.get("/experiences", dependencies=[Depends(validate_auth_code)])
 async def experiences():
     return await controller_api.experiences()
